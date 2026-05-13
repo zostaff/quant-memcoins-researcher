@@ -46,6 +46,31 @@ class BacktestConfig:
         if low >= high:
             raise ValueError("position_bounds: low must be < high")
 
+    @classmethod
+    def from_schedule(
+        cls,
+        schedule: "BarSchedule",
+        *,
+        cost_bps: float | None = None,
+        execution_lag: int = 1,
+    ) -> "BacktestConfig":
+        """Build a config whose annualization matches a BarSchedule.
+
+        Lets you do `BacktestConfig.from_schedule(BarSchedule.hourly())` and
+        get the right Sharpe annualization for 1-hour bars (≈ 1764 vs the
+        usual 252).
+        """
+        from ai_quant_lab.backtest.bar_engine import BarSchedule  # local to break cycle
+        if not isinstance(schedule, BarSchedule):
+            raise TypeError("schedule must be a BarSchedule")
+        kwargs: dict = {
+            "annualization": schedule.annualization,
+            "execution_lag": execution_lag,
+        }
+        if cost_bps is not None:
+            kwargs["cost_bps"] = cost_bps
+        return cls(**kwargs)
+
 
 @dataclass(frozen=True)
 class BacktestResult:

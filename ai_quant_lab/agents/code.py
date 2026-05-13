@@ -19,7 +19,7 @@ from ai_quant_lab.agents.base import AgentMessage, call_claude
 from ai_quant_lab.agents.hypothesis import StrategyHypothesis
 
 
-SYSTEM_PROMPT = """You are a Python developer translating quantitative hypotheses into code.
+SYSTEM_PROMPT_SINGLE = """You are a Python developer translating quantitative hypotheses into code.
 
 Constraints (non-negotiable):
 1. Output ONE function named `strategy(price_data: pd.Series) -> pd.Series`.
@@ -34,6 +34,33 @@ If the hypothesis is ambiguous, make sensible defaults — do not ask questions.
 """
 
 
+SYSTEM_PROMPT_CROSS_SECTIONAL = """You are a Python developer translating quantitative hypotheses into code.
+
+The strategy is CROSS-SECTIONAL: it ranks/scores assets at each bar and goes
+long the best, short the worst (or whatever the hypothesis specifies).
+
+Constraints (non-negotiable):
+1. Output ONE function: `strategy(price_data: pd.DataFrame) -> pd.DataFrame`.
+   `price_data` has time on the index, asset id on columns. Return a DataFrame
+   of the SAME shape, where each cell is the target weight for that asset at
+   that time.
+2. Imports allowed: numpy as np, pandas as pd,
+   ai_quant_lab.features.library, ai_quant_lab.features.cross_sectional
+   (rank_within_universe, zscore_cross_section, neutralize_by_factor,
+    industry_neutralize, cross_sectional_momentum).
+3. NEVER look at future bars. Always .shift(1) before computing signals.
+4. The portfolio should be roughly dollar-neutral: sum(weights per row) ≈ 0.
+   Use long_short_quantile_portfolio shape: long top quantile, short bottom.
+5. Weights are unbounded per asset but the engine clips to [-1, 1] per cell.
+   Typical magnitudes are 1/N where N is universe size.
+6. Output ONLY the code in a ```python block.
+"""
+
+
+# Default to single-asset for backward compatibility.
+SYSTEM_PROMPT = SYSTEM_PROMPT_SINGLE
+
+
 @dataclass(frozen=True)
 class CodeArtifact:
     source: str  # full function source
@@ -43,11 +70,28 @@ _CODE_BLOCK_RE = re.compile(r"```(?:python)?\s*([\s\S]*?)```")
 
 
 class CodeAgent:
-    """Renders a strategy hypothesis into a runnable function."""
+    """Renders a strategy hypothesis into a runnable function.
 
-    def __init__(self, *, model: str | None = None, temperature: float = 0.2) -> None:
+    Switches between single-asset and cross-sectional system prompts based on
+    the `mode` argument. Cross-sectional mode is used when the universe is
+    a basket (e.g. equities) and dollar-neutral long-short is the goal.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        temperature: float = 0.2,
+        mode: str = "single",  # 'single' | 'cross_sectional'
+    ) -> None:
+        if mode not in {"single", "cross_sectional"}:
+            raise ValueError("mode must be 'single' or 'cross_sectional'")
         self.model = model
         self.temperature = temperature
+        self.mode = mode
+        self._system_prompt = (
+            SYSTEM_PROMPT_CROSS_SECTIONAL if mode == "cross_sectional" else SYSTEM_PROMPT_SINGLE
+        )
 
     def render(self, hypothesis: StrategyHypothesis) -> CodeArtifact:
         user_content = f"""Hypothesis: {hypothesis.title}
@@ -59,7 +103,7 @@ Spec:
 
 Write the strategy function."""
         response = call_claude(
-            system=SYSTEM_PROMPT,
+            system=self._system_prompt,
             messages=[AgentMessage(role="user", content=user_content)],
             model=self.model,
             temperature=self.temperature,

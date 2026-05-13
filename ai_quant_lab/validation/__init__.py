@@ -16,6 +16,18 @@ from ai_quant_lab.validation.deflated_sharpe import (
     estimate_trial_variance,
     probabilistic_sharpe,
 )
+from ai_quant_lab.validation.factor_attribution import (
+    AttributionResult,
+    PCAResult,
+    factor_concentration_score,
+    fama_french_attribution,
+    pca_decompose,
+)
+from ai_quant_lab.validation.meta_labeling import (
+    LogisticBinaryClassifier,
+    MetaLabeler,
+    meta_label_targets,
+)
 from ai_quant_lab.validation.diagnostics import (
     degradation_ratio,
     fold_stability,
@@ -29,13 +41,21 @@ from ai_quant_lab.validation.walk_forward import (
 )
 
 __all__ = [
+    "AttributionResult",
+    "LogisticBinaryClassifier",
+    "MetaLabeler",
+    "PCAResult",
     "WalkForwardFold",
     "combinatorial_purged_cv",
     "deflated_sharpe",
     "deflated_sharpe_pvalue",
     "degradation_ratio",
     "estimate_trial_variance",
+    "factor_concentration_score",
+    "fama_french_attribution",
     "fold_stability",
+    "meta_label_targets",
+    "pca_decompose",
     "probabilistic_sharpe",
     "purged_kfold_splits",
     "regime_breakdown",

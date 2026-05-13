@@ -19,14 +19,18 @@ from ai_quant_lab.agents.critic import CriticVerdict
 from ai_quant_lab.agents.memory import ResearchMemory
 from ai_quant_lab.config import settings
 from ai_quant_lab.validation.deflated_sharpe import DeflatedSharpeResult, deflated_sharpe
+from ai_quant_lab.validation.factor_attribution import factor_concentration_score
 
 
 @dataclass(frozen=True)
 class GateOutcome:
     """Aggregate gate result.
 
-    `passes` is True only if all three sub-gates pass. `rejection_reason` is the
+    `passes` is True only if all sub-gates pass. `rejection_reason` is the
     name of the first gate to fail (None if all pass).
+
+    Gates in evaluation order:
+        critic → deflated_sharpe → pairwise_correlation → pca_concentration
     """
 
     passes: bool
@@ -34,6 +38,7 @@ class GateOutcome:
     critic_verdict: CriticVerdict | None
     dsr_result: DeflatedSharpeResult | None
     max_correlation: float | None
+    pca_concentration: float | None = None
 
 
 def evaluate_gates(
@@ -45,6 +50,7 @@ def evaluate_gates(
     annualization: int | None = None,
     dsr_pvalue_max: float | None = None,
     max_correlation: float | None = None,
+    max_pca_concentration: float = 0.5,
 ) -> GateOutcome:
     """Run all three gates in order.
 
@@ -105,12 +111,27 @@ def evaluate_gates(
             max_correlation=max_corr,
         )
 
+    # PCA concentration: catches "stealthy" redundancy where pairwise corr is
+    # OK but the candidate still loads on the survivor set's main driver.
+    # Needs >= 2 survivors to even compute; defaults to 0 with fewer.
+    pca_score = factor_concentration_score(strategy_returns, accepted_returns or [])
+    if pca_score >= max_pca_concentration:
+        return GateOutcome(
+            passes=False,
+            rejection_reason=f"pca_concentration={pca_score:.2f}>={max_pca_concentration}",
+            critic_verdict=critic_verdict,
+            dsr_result=dsr,
+            max_correlation=max_corr,
+            pca_concentration=pca_score,
+        )
+
     return GateOutcome(
         passes=True,
         rejection_reason=None,
         critic_verdict=critic_verdict,
         dsr_result=dsr,
         max_correlation=max_corr,
+        pca_concentration=pca_score,
     )
 
 

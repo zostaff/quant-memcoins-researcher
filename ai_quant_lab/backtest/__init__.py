@@ -15,15 +15,33 @@ from ai_quant_lab.backtest.engine import (
     performance_metrics,
     vectorized_backtest,
 )
+from ai_quant_lab.backtest.bar_engine import (
+    BarSchedule,
+    annualization_from_index,
+    infer_bar_interval,
+    session_mask,
+)
 from ai_quant_lab.backtest.event_driven import EventDrivenBacktest, RealisticEventDriven
+from ai_quant_lab.backtest.portfolio import (
+    PortfolioBacktestResult,
+    long_short_quantile_portfolio,
+    vectorized_portfolio_backtest,
+)
 
 __all__ = [
     "BacktestConfig",
     "BacktestResult",
+    "BarSchedule",
     "EventDrivenBacktest",
+    "PortfolioBacktestResult",
     "RealisticEventDriven",
+    "annualization_from_index",
+    "infer_bar_interval",
+    "long_short_quantile_portfolio",
     "market_impact_bps",
     "performance_metrics",
     "realistic_cost_bps",
+    "session_mask",
     "vectorized_backtest",
+    "vectorized_portfolio_backtest",
 ]

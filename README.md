@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-54%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-80%20passing-brightgreen.svg)](tests/)
 [![Claude](https://img.shields.io/badge/Claude-Anthropic_SDK-7AD6F8.svg)](https://docs.anthropic.com)
 
 > AI-powered quant research engine. Claude generates strategies; the system validates and kills the bad ones.
@@ -89,15 +89,23 @@ puts the expensive part where it belongs.
 | Purged CV                          | ✅ Combinatorial       | ❌            | ❌         | ❌          |
 | Leakage detector                   | ✅ Correlation + structural (truncation) | ❌ | ❌ | ❌      |
 | Walk-forward                       | ✅ With purge          | ❌            | ❌         | ✅ Basic    |
+| Cross-sectional portfolio engine   | ✅ Long-short, dollar-neutral | ❌      | ❌         | ❌          |
+| Cross-sectional features           | ✅ Rank, z-score, factor / industry neutralize | ❌ | ❌ | ❌    |
+| Meta-labeling                      | ✅ Logistic classifier, act/skip filter | ❌ | ❌    | ❌          |
+| Factor attribution                 | ✅ PCA + Fama-French OLS | ❌          | ❌         | ❌          |
+| PCA concentration gate             | ✅ Catches stealthy duplication | ❌  | ❌         | ❌          |
 | Realistic execution                | ✅ Slippage, partial fills, participation cap | ❌ | ❌ | ❌ |
+| TCA framework                      | ✅ Calibrates costs from fills | ❌    | ❌         | ❌          |
+| Intraday-aware bar engine          | ✅ BarSchedule auto-annualization | ❌ | ❌      | ❌          |
+| OHLCV features                     | ✅ Parkinson, Garman-Klass, VWAP-dev | ❌ | ❌ | ❌      |
 | Adversarial critic                 | ✅ Per-market templates (equities/crypto/futures/options/fx) | ❌ | ✅ Reflect | ❌ |
 | Memory / trial counting            | ✅ SQLite, persists returns | ❌       | ✅ SQLite  | ✅ Feature map |
 | Claude-native                      | ✅ Anthropic SDK + prompt caching | Generic | Gemini | Gemini |
 | Production kill-switch             | ✅ Drawdown / loss / Sharpe collapse | ❌ | ❌    | ❌          |
 | Paper trading diagnostics          | ✅                     | ❌            | ❌         | ❌          |
-| Lines of code                      | ~2500                  | ~5000+        | ~3000+     | ~2000+      |
+| Lines of code                      | ~5000                  | ~5000+        | ~3000+     | ~2000+      |
 | Dependencies                       | 5                      | 15+           | 10+        | 10+         |
-| Works without API key              | ✅ (examples 1-5)      | ❌            | ❌         | ❌          |
+| Works without API key              | ✅ (examples 1-5, 7-9) | ❌            | ❌         | ❌          |
 | Continuous integration             | ✅ (Python 3.11+3.12, ruff) | ❌       | ❌         | ❌          |
 
 ---
@@ -299,6 +307,7 @@ kill = KillSwitch(triggers=[drawdown_trigger(0.10), sharpe_collapse_trigger(-0.5
 | [`06_full_research_loop.py`](examples/06_full_research_loop.py) | End-to-end loop: Claude proposes → validates → accepts/rejects. | Yes |
 | [`07_cross_sectional_momentum.py`](examples/07_cross_sectional_momentum.py) | Three iterations of cross-sectional momentum, with DSR each step. | No |
 | [`08_paper_trading_sim.py`](examples/08_paper_trading_sim.py) | Simulated paper trading with daily diagnostics and a kill switch. | No |
+| [`09_cross_sectional_portfolio.py`](examples/09_cross_sectional_portfolio.py) | Long-short basket + PCA gate finds stealthy duplication missed by pairwise corr. | No |
 
 ---
 

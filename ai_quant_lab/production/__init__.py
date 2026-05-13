@@ -16,13 +16,23 @@ from ai_quant_lab.production.audit_log import DecisionLog, DecisionRecord
 from ai_quant_lab.production.kill_switch import KillSwitch, KillSwitchTrigger
 from ai_quant_lab.production.monitoring import MetricsCollector
 from ai_quant_lab.production.paper_trading import LiveDiagnostic, diagnose
+from ai_quant_lab.production.tca import (
+    Fill,
+    TCAReport,
+    calibrate_slippage_coefficient,
+    compute_tca,
+)
 
 __all__ = [
     "DecisionLog",
     "DecisionRecord",
+    "Fill",
     "KillSwitch",
     "KillSwitchTrigger",
     "LiveDiagnostic",
     "MetricsCollector",
+    "TCAReport",
+    "calibrate_slippage_coefficient",
+    "compute_tca",
     "diagnose",
 ]

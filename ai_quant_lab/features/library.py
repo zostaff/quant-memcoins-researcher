@@ -76,6 +76,77 @@ def range_pct(
     return bar_range.rolling(window=window, min_periods=window).mean().rename(f"range_{window}")
 
 
+def parkinson_volatility(
+    high: pd.Series,
+    low: pd.Series,
+    window: int = 21,
+) -> pd.Series:
+    """Parkinson's range-based volatility estimator.
+
+    rv_parkinson = sqrt( (1 / 4 ln 2) * mean( (ln(H/L))^2 ) )
+
+    Tighter than realized vol from closes alone because it uses the bar's
+    intraday range. Useful for low-frequency strategies that want a vol
+    signal without going to true intraday data.
+    """
+    if window < 2:
+        raise ValueError("window must be >= 2")
+    high_lag = high.shift(1)
+    low_lag = low.shift(1)
+    log_range_sq = (np.log(high_lag / low_lag.replace(0, np.nan))) ** 2
+    factor = 1.0 / (4.0 * np.log(2.0))
+    return (factor * log_range_sq.rolling(window=window, min_periods=window).mean()).pipe(np.sqrt).rename(
+        f"parkinson_{window}"
+    )
+
+
+def garman_klass_volatility(
+    open_price: pd.Series,
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    window: int = 21,
+) -> pd.Series:
+    """Garman-Klass volatility (uses all four OHLC prices).
+
+    Two to five times more efficient than close-to-close at the same
+    sample size, in the absence of opening jumps. Don't use it if your
+    market has heavy overnight gaps (single-stock equities) — Parkinson
+    is more robust there.
+    """
+    if window < 2:
+        raise ValueError("window must be >= 2")
+    high_lag = high.shift(1)
+    low_lag = low.shift(1)
+    open_lag = open_price.shift(1)
+    close_lag = close.shift(1)
+    a = 0.5 * (np.log(high_lag / low_lag.replace(0, np.nan))) ** 2
+    b = (2 * np.log(2) - 1) * (np.log(close_lag / open_lag.replace(0, np.nan))) ** 2
+    return (a - b).rolling(window=window, min_periods=window).mean().pipe(np.sqrt).rename(
+        f"garman_klass_{window}"
+    )
+
+
+def vwap_deviation(
+    close: pd.Series,
+    volume: pd.Series,
+    window: int = 21,
+) -> pd.Series:
+    """% deviation of close from the rolling volume-weighted average.
+
+    Positive = trading rich vs recent VWAP. Mean-reverting on short windows,
+    trending on long windows. Inputs are shifted by one bar.
+    """
+    if window < 2:
+        raise ValueError("window must be >= 2")
+    close_lag = close.shift(1)
+    volume_lag = volume.shift(1)
+    numerator = (close_lag * volume_lag).rolling(window=window, min_periods=window).sum()
+    denominator = volume_lag.rolling(window=window, min_periods=window).sum().replace(0, np.nan)
+    rolling_vwap = numerator / denominator
+    return (close_lag / rolling_vwap - 1.0).rename(f"vwap_dev_{window}")
+
+
 def ewma(price_data: pd.Series, halflife: float) -> pd.Series:
     """Exponentially weighted moving average, lagged by one bar.
 

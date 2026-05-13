@@ -28,7 +28,7 @@ class SandboxError(RuntimeError):
 
 @dataclass(frozen=True)
 class SandboxResult:
-    positions: pd.Series
+    positions: pd.Series | pd.DataFrame
     elapsed_seconds: float
 
 
@@ -40,32 +40,34 @@ _ALLOWED_IMPORTS: frozenset[str] = frozenset(
         "pd",
         "math",
         "ai_quant_lab.features.library",
+        "ai_quant_lab.features.cross_sectional",
     }
 )
 
 
 def run_strategy(
     source: str,
-    price_data: pd.Series,
+    price_data: pd.Series | pd.DataFrame,
     *,
     timeout_seconds: float = 10.0,
 ) -> SandboxResult:
     """Execute a strategy source string against price data.
 
-    The source must define a function `strategy(price_data)`. The function is
-    called with the provided Series. Anything else is rejected.
+    The source must define a function `strategy(price_data)`. Single-asset
+    strategies accept a Series; cross-sectional strategies accept a DataFrame.
+    The engine inspects the input type and validates the output shape matches.
 
     Args:
         source: Python source code defining `strategy`.
-        price_data: Series passed to `strategy`.
-        timeout_seconds: Wall-clock cap; SIGALRM on POSIX. On non-POSIX or if
-            the call finishes faster, this has no effect.
+        price_data: Series (single asset) or DataFrame (multi-asset).
+        timeout_seconds: Wall-clock cap; SIGALRM on POSIX.
 
     Returns:
-        SandboxResult with the positions and elapsed time.
+        SandboxResult with the positions (Series or DataFrame matching input).
 
     Raises:
-        SandboxError: on disallowed imports, missing function, exceptions, or timeout.
+        SandboxError: on disallowed imports, missing function, exceptions,
+            shape mismatch, or timeout.
     """
     _validate_imports(source)
 
@@ -93,11 +95,28 @@ def run_strategy(
             raise SandboxError(f"Strategy raised: {exc}") from exc
     elapsed = time.perf_counter() - start
 
-    if not isinstance(positions, pd.Series):
-        raise SandboxError(f"Strategy must return a Series, got {type(positions).__name__}.")
-    if not positions.index.equals(price_data.index):
-        raise SandboxError("Strategy returned a Series with a different index.")
-    return SandboxResult(positions=positions.fillna(0.0), elapsed_seconds=elapsed)
+    expected_type = type(price_data).__name__
+    if isinstance(price_data, pd.Series):
+        if not isinstance(positions, pd.Series):
+            raise SandboxError(
+                f"Single-asset strategy must return a Series, got {type(positions).__name__}."
+            )
+        if not positions.index.equals(price_data.index):
+            raise SandboxError("Strategy returned a Series with a different index.")
+        return SandboxResult(positions=positions.fillna(0.0), elapsed_seconds=elapsed)
+
+    if isinstance(price_data, pd.DataFrame):
+        if not isinstance(positions, pd.DataFrame):
+            raise SandboxError(
+                f"Cross-sectional strategy must return a DataFrame, got {type(positions).__name__}."
+            )
+        if not positions.index.equals(price_data.index):
+            raise SandboxError("Strategy returned a DataFrame with a different index.")
+        if not positions.columns.equals(price_data.columns):
+            raise SandboxError("Strategy returned a DataFrame with different columns.")
+        return SandboxResult(positions=positions.fillna(0.0), elapsed_seconds=elapsed)
+
+    raise SandboxError(f"Unsupported price_data type: {expected_type}")
 
 
 def _validate_imports(source: str) -> None:
