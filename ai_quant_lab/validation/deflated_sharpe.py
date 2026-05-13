@@ -79,8 +79,13 @@ def deflated_sharpe(
         (benchmark_sharpe / math.sqrt(annualization)) if benchmark_sharpe is not None else 0.0
     )
 
-    skew = float(stats.skew(series, bias=False)) if n > 3 else 0.0
-    kurt = float(stats.kurtosis(series, fisher=True, bias=False)) if n > 4 else 0.0
+    # Suppress scipy's catastrophic-cancellation warning on near-constant series;
+    # we handle that case explicitly via the std tolerance in _per_period_sharpe.
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        skew = float(stats.skew(series, bias=False)) if n > 3 else 0.0
+        kurt = float(stats.kurtosis(series, fisher=True, bias=False)) if n > 4 else 0.0
 
     if trial_variance is None:
         trial_variance = 1.0 / max(n - 1, 1)
@@ -135,7 +140,9 @@ def probabilistic_sharpe(
 
 def _per_period_sharpe(series: pd.Series) -> float:
     std = series.std(ddof=1)
-    if std == 0 or np.isnan(std):
+    # Use a tolerance, not equality: floating point can leave residual noise
+    # in "constant" series and produce nonsensical 1e16 Sharpe values.
+    if not np.isfinite(std) or std < 1e-12:
         return 0.0
     return float(series.mean() / std)
 

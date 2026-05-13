@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-80%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-111%20passing-brightgreen.svg)](tests/)
 [![Claude](https://img.shields.io/badge/Claude-Anthropic_SDK-7AD6F8.svg)](https://docs.anthropic.com)
 
 > AI-powered quant research engine. Claude generates strategies; the system validates and kills the bad ones.
