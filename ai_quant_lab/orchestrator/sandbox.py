@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import signal
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -41,13 +42,14 @@ _ALLOWED_IMPORTS: frozenset[str] = frozenset(
         "math",
         "ai_quant_lab.features.library",
         "ai_quant_lab.features.cross_sectional",
+        "ai_quant_lab.meme.features",
     }
 )
 
 
 def run_strategy(
     source: str,
-    price_data: pd.Series | pd.DataFrame,
+    price_data: pd.Series | pd.DataFrame | Mapping[str, pd.DataFrame],
     *,
     timeout_seconds: float = 10.0,
 ) -> SandboxResult:
@@ -55,6 +57,8 @@ def run_strategy(
 
     The source must define a function `strategy(price_data)`. Single-asset
     strategies accept a Series; cross-sectional strategies accept a DataFrame.
+    Memecoin strategies accept a mapping of panel frames ('close', 'liquidity',
+    'volume', optionally 'holders') and return weights shaped like 'close'.
     The engine inspects the input type and validates the output shape matches.
 
     Args:
@@ -116,6 +120,20 @@ def run_strategy(
             raise SandboxError("Strategy returned a DataFrame with different columns.")
         return SandboxResult(positions=positions.fillna(0.0), elapsed_seconds=elapsed)
 
+    if isinstance(price_data, Mapping):
+        reference = price_data.get("close")
+        if not isinstance(reference, pd.DataFrame):
+            raise SandboxError("Panel input must contain a 'close' DataFrame.")
+        if not isinstance(positions, pd.DataFrame):
+            raise SandboxError(
+                f"Panel strategy must return a DataFrame, got {type(positions).__name__}."
+            )
+        if not positions.index.equals(reference.index):
+            raise SandboxError("Strategy returned a DataFrame with a different index.")
+        if not positions.columns.equals(reference.columns):
+            raise SandboxError("Strategy returned a DataFrame with different columns.")
+        return SandboxResult(positions=positions.fillna(0.0), elapsed_seconds=elapsed)
+
     raise SandboxError(f"Unsupported price_data type: {expected_type}")
 
 
@@ -128,12 +146,28 @@ def _validate_imports(source: str) -> None:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for name in node.names:
-                if name.name.split(".")[0] not in _ALLOWED_IMPORTS:
+                if name.name not in _ALLOWED_IMPORTS:
                     raise SandboxError(f"Disallowed import: {name.name}")
         elif isinstance(node, ast.ImportFrom):
             mod = node.module or ""
-            if mod.split(".")[0] not in _ALLOWED_IMPORTS:
+            if node.level or not _import_from_allowed(mod, [a.name for a in node.names]):
                 raise SandboxError(f"Disallowed import from: {mod}")
+
+
+def _import_from_allowed(module: str, names: list[str]) -> bool:
+    # `from ai_quant_lab.meme import features` names the module `...meme.features`.
+    if module in _ALLOWED_IMPORTS:
+        return True
+    return all(f"{module}.{name}" in _ALLOWED_IMPORTS for name in names)
+
+
+def _guarded_import(name, globals=None, locals=None, fromlist=(), level=0):  # noqa: A002
+    """`__import__` for strategy code: whitelisted modules only."""
+    import builtins
+
+    if level or not (name in _ALLOWED_IMPORTS or _import_from_allowed(name, list(fromlist or ()))):
+        raise ImportError(f"import of {name!r} is not allowed in strategies")
+    return builtins.__import__(name, globals, locals, fromlist, level)
 
 
 def _safe_builtins() -> dict[str, Any]:
@@ -154,6 +188,7 @@ def _safe_builtins() -> dict[str, Any]:
         )
         if hasattr(builtins, name)
     }
+    safe["__import__"] = _guarded_import
     return safe
 
 

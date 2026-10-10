@@ -48,6 +48,42 @@ Rules:
 """
 
 
+SYSTEM_PROMPT_MEMECOIN = """You are a quantitative researcher at a fund that trades memecoins.
+
+Treat the memecoin market the way a fund treats any market: as a cross-section
+of assets with risk factors, execution costs and a capacity limit. Ground ideas
+in mechanisms: attention cycles, liquidity flowing into or out of pools, holder
+base growth, post-launch decay, the survivor premium of tokens that outlive
+the rug window, overreaction and exhaustion after vertical moves.
+
+Rules:
+1. Data available: per-token close, pool liquidity (TVL), volume, holder
+   count. Nothing else: no social data, no wallet labels, no news.
+2. Long only. No shorting, no leverage.
+3. Costs are brutal (several % per round trip in small pools), so prefer
+   holding periods of hours to days and liquidity filters over fast rotation.
+4. Be specific: windows in bars, thresholds, liquidity floor, max positions.
+5. State the regime where it works and where it dies. Expected Sharpe: be honest.
+6. Output VALID JSON only, same schema as below.
+
+{
+  "hypothesis_id": "<short snake_case id>",
+  "title": "<one-line description>",
+  "rationale": "<2-4 sentences citing the mechanism>",
+  "spec": {
+    "signal": "<precise signal with parameters>",
+    "direction": "long",
+    "holding_period_bars": <integer>,
+    "rebalance_bars": <integer>,
+    "position_bounds": [0, <max weight per token>]
+  },
+  "expected_sharpe_range": [<low>, <high>],
+  "works_in_regime": "<regime where edge exists>",
+  "breaks_in_regime": "<regime where edge dies>"
+}
+"""
+
+
 @dataclass(frozen=True)
 class StrategyHypothesis:
     hypothesis_id: str
@@ -62,9 +98,16 @@ class StrategyHypothesis:
 class HypothesisAgent:
     """Claude-powered hypothesis proposer."""
 
-    def __init__(self, *, model: str | None = None, temperature: float = 0.6) -> None:
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        temperature: float = 0.6,
+        market_type: str = "generic",
+    ) -> None:
         self.model = model
         self.temperature = temperature
+        self._system_prompt = SYSTEM_PROMPT_MEMECOIN if market_type == "memecoin" else SYSTEM_PROMPT
 
     def propose(
         self,
@@ -96,7 +139,7 @@ Prior trials (most recent last):
 
 Propose ONE new strategy. Output JSON only, matching the schema."""
         response = call_claude(
-            system=SYSTEM_PROMPT,
+            system=self._system_prompt,
             messages=[AgentMessage(role="user", content=user_content)],
             model=self.model,
             temperature=self.temperature,

@@ -8,8 +8,9 @@ notebook, from `run.py`, or from a test (with mocked agents).
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Callable, Sequence
+from typing import Any, Callable, Sequence
 
 import pandas as pd
 
@@ -38,6 +39,9 @@ class LoopConfig:
     max_llm_calls: int = field(default_factory=lambda: settings.max_llm_calls)
     backtest_config: BacktestConfig = field(default_factory=BacktestConfig)
     annualization: int = field(default_factory=lambda: settings.annualization)
+    # Custom engine: (positions, price_data) -> (net returns, metrics). None uses
+    # the single-asset vectorized engine. Memecoin runs pass meme_backtest_fn().
+    backtest_fn: Callable[[Any, Any], tuple[pd.Series, dict[str, float]]] | None = None
 
 
 @dataclass
@@ -54,7 +58,7 @@ class LoopArtifact:
 
 
 def run_research_loop(
-    price_data: pd.Series,
+    price_data: pd.Series | pd.DataFrame | Mapping[str, pd.DataFrame],
     config: LoopConfig,
     *,
     memory: ResearchMemory,
@@ -68,8 +72,9 @@ def run_research_loop(
     Returns:
         (artifacts, survivors) — full per-iteration log and the accepted set.
     """
-    hypothesis_agent = hypothesis_agent or HypothesisAgent()
-    code_agent = code_agent or CodeAgent()
+    is_meme = config.market_type == "memecoin"
+    hypothesis_agent = hypothesis_agent or HypothesisAgent(market_type=config.market_type)
+    code_agent = code_agent or CodeAgent(mode="memecoin" if is_meme else "single")
     critic_agent = critic_agent or CriticAgent(market_type=config.market_type)
 
     artifacts: list[LoopArtifact] = []
@@ -113,7 +118,7 @@ def run_research_loop(
 def _run_iteration(
     *,
     iteration: int,
-    price_data: pd.Series,
+    price_data: pd.Series | pd.DataFrame | Mapping[str, pd.DataFrame],
     config: LoopConfig,
     memory: ResearchMemory,
     survivors: Sequence[TrialRecord],
@@ -186,11 +191,17 @@ def _run_iteration(
             gate_outcome=None,
         )
 
-    returns = price_data.pct_change().fillna(0.0)
-    result = vectorized_backtest(sandbox_result.positions, returns, config=config.backtest_config)
+    if config.backtest_fn is not None:
+        strategy_returns, metrics = config.backtest_fn(sandbox_result.positions, price_data)
+    else:
+        returns = price_data.pct_change().fillna(0.0)
+        result = vectorized_backtest(
+            sandbox_result.positions, returns, config=config.backtest_config
+        )
+        strategy_returns, metrics = result.returns, result.metrics
     gate_outcome = evaluate_gates(
         critic_verdict=verdict,
-        strategy_returns=result.returns,
+        strategy_returns=strategy_returns,
         memory=memory,
         accepted_returns=accepted_returns,
         annualization=config.annualization,
@@ -200,8 +211,8 @@ def _run_iteration(
     if gate_outcome.passes:
         returns_payload = json.dumps(
             {
-                "index": [str(t) for t in result.returns.index],
-                "values": [float(v) for v in result.returns.tolist()],
+                "index": [str(t) for t in strategy_returns.index],
+                "values": [float(v) for v in strategy_returns.tolist()],
             }
         )
     memory.record(
@@ -210,7 +221,7 @@ def _run_iteration(
             hypothesis_text=hypothesis.title,
             rationale=hypothesis.rationale,
             code=code.source,
-            metrics=result.metrics,
+            metrics=metrics,
             accepted=gate_outcome.passes,
             rejection_reason=gate_outcome.rejection_reason,
             n_trials_at_time=memory.n_trials(),
@@ -219,12 +230,12 @@ def _run_iteration(
         )
     )
     log(
-        f"[{iteration:03d}] SR={result.metrics['sharpe_ratio']:+.2f} "
+        f"[{iteration:03d}] SR={metrics['sharpe_ratio']:+.2f} "
         f"→ {'ACCEPT' if gate_outcome.passes else f'REJECT ({gate_outcome.rejection_reason})'}"
     )
 
     if gate_outcome.passes:
-        accepted_returns.append(result.returns)
+        accepted_returns.append(strategy_returns)
 
     return LoopArtifact(
         iteration=iteration,
@@ -232,7 +243,7 @@ def _run_iteration(
         title=hypothesis.title,
         accepted=gate_outcome.passes,
         rejection_reason=gate_outcome.rejection_reason,
-        sharpe=result.metrics["sharpe_ratio"],
+        sharpe=metrics["sharpe_ratio"],
         gate_outcome=gate_outcome,
     )
 

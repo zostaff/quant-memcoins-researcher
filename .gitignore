@@ -37,3 +37,7 @@ data/cache/
 
 # Figures regenerate from script, but allow checked-in PNGs
 # figures/*.png
+
+# macOS on exFAT
+._*
+.DS_Store

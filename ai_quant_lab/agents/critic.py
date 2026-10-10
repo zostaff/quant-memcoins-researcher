@@ -28,7 +28,7 @@ from ai_quant_lab.agents.base import AgentMessage, call_claude, extract_first_js
 from ai_quant_lab.agents.hypothesis import StrategyHypothesis
 
 
-MarketType = Literal["equities", "crypto", "futures", "options", "fx", "generic"]
+MarketType = Literal["equities", "crypto", "futures", "options", "fx", "memecoin", "generic"]
 
 
 _GENERIC_FAILURE_MODES = """
@@ -59,6 +59,16 @@ _MARKET_SPECIFIC_FAILURES: dict[str, str] = {
 5. Costs that ignore funding payments and gas/withdrawal fees.
 6. Leverage cascades (LUNA, 3AC) that don't appear in clean tape data.
 7. Stablecoin de-pegs treated as "tradeable" when execution was halted.
+""".strip(),
+    "memecoin": """
+1. Survivorship: a universe built from tokens that still have a chart. Most tokens rug or bleed out; a dead token held is a -100% trade, not a missing row.
+2. Execution fantasy: fills at the printed price. Pools are a few $k to $100k of TVL; slippage is set by trade size versus reserve, plus swap fee, priority fees and sandwiches.
+3. Turnover: anything that rotates the book every few bars pays ~2-6% per round trip and is dead before the backtest starts.
+4. Disguised beta: long a basket of fresh tokens during a mania is the meme market factor, not alpha.
+5. Capacity: an edge that only exists at $500 tickets in $5k pools is not a strategy.
+6. Lookahead in launch data: using final holder counts, final max price, "graduated" flags or any label known only after the fact.
+7. Manipulated signals: volume and holder counts are cheap to fake (wash trading, bundled wallets, airdropped dust holders).
+8. Snipers and insiders own the first bars; a signal that needs to enter in the first minutes competes with bots it cannot beat.
 """.strip(),
     "futures": """
 1. Implicit lookahead in front-month vs back-month signals.

@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-111%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-131%20passing-brightgreen.svg)](tests/)
 [![Claude](https://img.shields.io/badge/Claude-Anthropic_SDK-7AD6F8.svg)](https://docs.anthropic.com)
 
 > AI-powered quant research engine. Claude generates strategies; the system validates and kills the bad ones.
@@ -23,6 +23,20 @@ python -m ai_quant_lab.run --iterations 10 --target 2   # full research loop
 
 That's it. Examples 1-5 run without an API key on synthetic data. Examples
 6-8 need a key and exercise the Claude-powered loop.
+
+---
+
+## Memecoin market
+
+The same validation core, pointed at Solana memecoins: point-in-time token
+universe with rugs written off, exact AMM execution costs, meme risk factors,
+capacity curves and a fund-style tear sheet. See [docs/MEMECOIN.md](docs/MEMECOIN.md).
+
+```bash
+python -m ai_quant_lab.meme demo                          # synthetic, no API key
+python -m ai_quant_lab.meme collect --db meme.db --every 120
+python -m ai_quant_lab.meme research --db meme.db         # Claude loop on real pools
+```
 
 ---
 

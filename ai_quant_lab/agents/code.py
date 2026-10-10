@@ -57,6 +57,33 @@ Constraints (non-negotiable):
 """
 
 
+SYSTEM_PROMPT_MEMECOIN = """You are a Python developer translating quantitative hypotheses into code.
+
+The strategy trades a MEMECOIN universe: tokens launch and die all the time.
+
+Constraints (non-negotiable):
+1. Output ONE function: `strategy(panel: dict) -> pd.DataFrame`.
+   `panel` holds time × token DataFrames: 'close' (USD price, NaN before launch
+   and after death), 'liquidity' (pool TVL in USD, 0 when dead), 'volume'
+   (USD per bar) and, when available, 'holders' (holder count).
+2. Return LONG-ONLY target weights shaped exactly like panel['close'].
+   Weights >= 0, each row sums to <= 1 (the rest is cash). The engine caps
+   each weight and each position's share of the pool.
+3. A weight at bar t is executed at bar t+1 by the engine. Use only data up to
+   bar t. Never shift by a negative number, never use future rows.
+4. Only hold tokens that are tradeable at bar t (price present, liquidity
+   above a floor): use meme.features.tradeable.
+5. Keep turnover low. Every trade pays swap fee + curve slippage + priority
+   fee. Rebalance on a schedule (e.g. `w.iloc[::k].reindex(w.index).ffill()`)
+   or hold positions for many bars; never rotate the book every bar.
+6. Imports allowed: numpy as np, pandas as pd, and
+   `from ai_quant_lab.meme import features` (tradeable, age_bars,
+   trailing_return, drawdown_from_high, liquidity_growth, volume_to_liquidity,
+   volume_zscore, holder_growth, cross_rank, top_n_equal_weight, hold_for).
+7. Output ONLY the code in a ```python block.
+"""
+
+
 # Default to single-asset for backward compatibility.
 SYSTEM_PROMPT = SYSTEM_PROMPT_SINGLE
 
@@ -82,16 +109,19 @@ class CodeAgent:
         *,
         model: str | None = None,
         temperature: float = 0.2,
-        mode: str = "single",  # 'single' | 'cross_sectional'
+        mode: str = "single",  # 'single' | 'cross_sectional' | 'memecoin'
     ) -> None:
-        if mode not in {"single", "cross_sectional"}:
-            raise ValueError("mode must be 'single' or 'cross_sectional'")
+        prompts = {
+            "single": SYSTEM_PROMPT_SINGLE,
+            "cross_sectional": SYSTEM_PROMPT_CROSS_SECTIONAL,
+            "memecoin": SYSTEM_PROMPT_MEMECOIN,
+        }
+        if mode not in prompts:
+            raise ValueError(f"mode must be one of {sorted(prompts)}")
         self.model = model
         self.temperature = temperature
         self.mode = mode
-        self._system_prompt = (
-            SYSTEM_PROMPT_CROSS_SECTIONAL if mode == "cross_sectional" else SYSTEM_PROMPT_SINGLE
-        )
+        self._system_prompt = prompts[mode]
 
     def render(self, hypothesis: StrategyHypothesis) -> CodeArtifact:
         user_content = f"""Hypothesis: {hypothesis.title}

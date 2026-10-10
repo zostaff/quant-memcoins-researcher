@@ -14,6 +14,7 @@ ai_quant_lab/
 ├── agents/              Claude-powered hypothesis / code / critic / risk / memory.
 ├── orchestrator/        Research loop, gates, sandbox.
 ├── production/          Paper-trading diagnostics, kill switch, audit log.
+├── meme/                Memecoin market: TokenPanel, AMM costs, factors, capacity, data.
 └── run.py               CLI entry point.
 ```
 
