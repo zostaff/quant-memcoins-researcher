@@ -23,7 +23,6 @@ from ai_quant_lab.backtest import (
 from ai_quant_lab.features.cross_sectional import (
     cross_sectional_momentum,
     rank_within_universe,
-    zscore_cross_section,
 )
 from ai_quant_lab.features.library import realized_volatility
 from ai_quant_lab.validation import (

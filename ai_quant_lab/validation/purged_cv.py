@@ -17,9 +17,9 @@ is the K-out-of-N case used to estimate the variance of out-of-sample Sharpe.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Iterator
 
 import numpy as np
 

@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from ai_quant_lab.agents.base import AgentMessage, call_claude
 from ai_quant_lab.agents.hypothesis import StrategyHypothesis
 
-
 SYSTEM_PROMPT_SINGLE = """You are a Python developer translating quantitative hypotheses into code.
 
 Constraints (non-negotiable):

@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ai_quant_lab.agents.critic import MarketType, build_system_prompt
+from ai_quant_lab.agents.critic import build_system_prompt
 from ai_quant_lab.agents.memory import ResearchMemory, TrialRecord
 from ai_quant_lab.backtest import BacktestConfig, RealisticEventDriven
 from ai_quant_lab.features import detect_leakage_structural, momentum

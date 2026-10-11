@@ -34,7 +34,6 @@ from ai_quant_lab.agents.memory import ResearchMemory
 from ai_quant_lab.backtest import BacktestConfig
 from ai_quant_lab.orchestrator.loop import LoopConfig, run_research_loop
 
-
 # =========================================================================
 # Mock agents — deterministic, no Claude calls.
 # =========================================================================

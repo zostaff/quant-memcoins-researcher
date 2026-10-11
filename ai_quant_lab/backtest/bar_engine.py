@@ -29,7 +29,6 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-
 BarInterval = Literal["1d", "4h", "1h", "30m", "15m", "5m", "1m"]
 
 
@@ -70,15 +69,15 @@ class BarSchedule:
         return self.trading_days_per_year * per_day
 
     @classmethod
-    def daily(cls) -> "BarSchedule":
+    def daily(cls) -> BarSchedule:
         return cls(interval="1d", trading_days_per_year=252, bars_per_trading_day=1)
 
     @classmethod
-    def hourly(cls) -> "BarSchedule":
+    def hourly(cls) -> BarSchedule:
         return cls(interval="1h")
 
     @classmethod
-    def crypto_daily(cls) -> "BarSchedule":
+    def crypto_daily(cls) -> BarSchedule:
         return cls(
             interval="1d",
             market_open=time(0, 0),
@@ -88,7 +87,7 @@ class BarSchedule:
         )
 
     @classmethod
-    def crypto_hourly(cls) -> "BarSchedule":
+    def crypto_hourly(cls) -> BarSchedule:
         return cls(
             interval="1h",
             market_open=time(0, 0),

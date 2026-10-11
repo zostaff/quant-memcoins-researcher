@@ -12,12 +12,15 @@ the backtest peeks at the future and inflates Sharpe by 2-5x.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
 
 from ai_quant_lab.backtest.costs import realistic_cost_bps
+
+if TYPE_CHECKING:
+    from ai_quant_lab.backtest.bar_engine import BarSchedule
 
 
 @dataclass(frozen=True)
@@ -49,11 +52,11 @@ class BacktestConfig:
     @classmethod
     def from_schedule(
         cls,
-        schedule: "BarSchedule",
+        schedule: BarSchedule,
         *,
         cost_bps: float | None = None,
         execution_lag: int = 1,
-    ) -> "BacktestConfig":
+    ) -> BacktestConfig:
         """Build a config whose annualization matches a BarSchedule.
 
         Lets you do `BacktestConfig.from_schedule(BarSchedule.hourly())` and

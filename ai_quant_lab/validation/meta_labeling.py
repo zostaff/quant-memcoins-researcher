@@ -32,7 +32,7 @@ import pandas as pd
 class BinaryClassifier(Protocol):
     """Minimal interface for a meta-classifier."""
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "BinaryClassifier": ...
+    def fit(self, X: np.ndarray, y: np.ndarray) -> BinaryClassifier: ...
     def predict_proba(self, X: np.ndarray) -> np.ndarray: ...
 
 
@@ -49,7 +49,7 @@ class LogisticBinaryClassifier:
     max_iter: int = 200
     coef_: np.ndarray | None = field(default=None, init=False)
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "LogisticBinaryClassifier":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> LogisticBinaryClassifier:
         from scipy.optimize import minimize
 
         X = np.asarray(X, dtype=float)
@@ -110,7 +110,7 @@ class MetaLabeler:
         primary_side: pd.Series,
         forward_returns: pd.Series,
         features: pd.DataFrame,
-    ) -> "MetaLabeler":
+    ) -> MetaLabeler:
         """Train the meta-classifier.
 
         Args:

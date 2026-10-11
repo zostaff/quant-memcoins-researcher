@@ -19,7 +19,6 @@ import pandas as pd
 
 from ai_quant_lab.agents.base import AgentMessage, call_claude, extract_first_json
 
-
 SYSTEM_PROMPT = """You are a risk officer reviewing a quantitative strategy before it goes live.
 
 You will be shown:

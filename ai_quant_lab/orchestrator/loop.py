@@ -8,9 +8,9 @@ notebook, from `run.py`, or from a test (with mocked agents).
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Sequence
+from typing import Any
 
 import pandas as pd
 

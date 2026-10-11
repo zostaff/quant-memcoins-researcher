@@ -27,7 +27,6 @@ from typing import Literal
 from ai_quant_lab.agents.base import AgentMessage, call_claude, extract_first_json
 from ai_quant_lab.agents.hypothesis import StrategyHypothesis
 
-
 MarketType = Literal["equities", "crypto", "futures", "options", "fx", "memecoin", "generic"]
 
 

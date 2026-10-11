@@ -204,7 +204,7 @@ class _alarm:
         self._previous: Any = None
         self._active = False
 
-    def __enter__(self) -> "_alarm":
+    def __enter__(self) -> _alarm:
         if hasattr(signal, "SIGALRM"):
             self._previous = signal.signal(signal.SIGALRM, self._handler)
             signal.setitimer(signal.ITIMER_REAL, self.seconds)

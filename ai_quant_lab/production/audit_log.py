@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +64,7 @@ class DecisionLog:
     ) -> DecisionRecord:
         """Build and append in one call."""
         record = DecisionRecord(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             strategy_id=strategy_id,
             symbol=symbol,
             intent_position=intent_position,

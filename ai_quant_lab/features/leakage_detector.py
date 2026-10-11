@@ -19,8 +19,8 @@ doesn't need the source — only the values and a target.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 import numpy as np
 import pandas as pd

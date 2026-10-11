@@ -11,9 +11,9 @@ Once tripped, the switch stays tripped until manually reset. There is no
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 import pandas as pd
 
@@ -56,7 +56,7 @@ class KillSwitch:
             if fired:
                 self.tripped = True
                 self.trip_reason = trigger.name
-                self.trip_time = datetime.now(timezone.utc).isoformat()
+                self.trip_time = datetime.now(UTC).isoformat()
                 self.history.append(
                     {
                         "event": "tripped",
@@ -75,7 +75,7 @@ class KillSwitch:
                 "event": "reset",
                 "previous_reason": self.trip_reason,
                 "note": note,
-                "time": datetime.now(timezone.utc).isoformat(),
+                "time": datetime.now(UTC).isoformat(),
             }
         )
         self.tripped = False

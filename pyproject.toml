@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-quant-lab"
-version = "0.1.0"
-description = "AI-powered quant research engine. Claude generates strategies; the system validates and kills the bad ones."
+name = "quant-memcoins-researcher"
+version = "0.2.0"
+description = "Hedge-fund quant research for memecoins on Solana and Robinhood Chain. Claude generates strategies; the system prices rugs, slippage and MEV, and kills the lucky ones."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-authors = [{name = "ai-quant-lab contributors"}]
-keywords = ["quant", "trading", "research", "claude", "anthropic", "backtest", "deflated-sharpe", "purged-cv"]
+authors = [{name = "zostaff"}]
+keywords = ["memecoin", "solana", "robinhood-chain", "pump-fun", "quant", "trading", "research", "claude", "anthropic", "backtest", "deflated-sharpe", "purged-cv"]
 classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -55,3 +55,7 @@ filterwarnings = ["ignore::DeprecationWarning"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]

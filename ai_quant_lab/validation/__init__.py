@@ -16,6 +16,11 @@ from ai_quant_lab.validation.deflated_sharpe import (
     estimate_trial_variance,
     probabilistic_sharpe,
 )
+from ai_quant_lab.validation.diagnostics import (
+    degradation_ratio,
+    fold_stability,
+    regime_breakdown,
+)
 from ai_quant_lab.validation.factor_attribution import (
     AttributionResult,
     PCAResult,
@@ -27,11 +32,6 @@ from ai_quant_lab.validation.meta_labeling import (
     LogisticBinaryClassifier,
     MetaLabeler,
     meta_label_targets,
-)
-from ai_quant_lab.validation.diagnostics import (
-    degradation_ratio,
-    fold_stability,
-    regime_breakdown,
 )
 from ai_quant_lab.validation.purged_cv import combinatorial_purged_cv, purged_kfold_splits
 from ai_quant_lab.validation.walk_forward import (

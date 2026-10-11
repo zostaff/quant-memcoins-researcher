@@ -12,8 +12,9 @@ Two modes:
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Callable, Iterator, Literal
+from typing import Literal
 
 import numpy as np
 import pandas as pd

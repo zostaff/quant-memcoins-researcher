@@ -10,15 +10,14 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 import numpy as np
 import pandas as pd
 
-from ai_quant_lab.backtest import BacktestConfig
 from ai_quant_lab.features.library import momentum, realized_volatility
-from ai_quant_lab.validation import walk_forward_evaluate
 from ai_quant_lab.validation.deflated_sharpe import deflated_sharpe
 
 
@@ -83,7 +82,6 @@ def iteration_3(prices: pd.DataFrame) -> pd.Series:
 
 def main() -> None:
     prices = synthetic_universe()
-    config = BacktestConfig(cost_bps=10.0)
 
     for i, fn in enumerate([iteration_1, iteration_2, iteration_3], start=1):
         rets = fn(prices)

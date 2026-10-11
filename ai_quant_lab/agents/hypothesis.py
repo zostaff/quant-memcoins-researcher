@@ -12,7 +12,6 @@ from dataclasses import dataclass
 
 from ai_quant_lab.agents.base import AgentMessage, call_claude, extract_first_json
 
-
 SYSTEM_PROMPT = """You are a quantitative researcher proposing trading strategies.
 
 Your job is NOT to be creative. Your job is to propose strategies grounded in

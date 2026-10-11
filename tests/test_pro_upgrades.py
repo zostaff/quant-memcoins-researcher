@@ -49,7 +49,6 @@ from ai_quant_lab.validation import (
     pca_decompose,
 )
 
-
 # ---------- portfolio backtest ----------
 
 def _make_universe(seed: int = 0, n_bars: int = 500, n_assets: int = 10):
