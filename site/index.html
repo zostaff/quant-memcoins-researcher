@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>quant-memcoins-researcher</title>
+<meta name="description" content="Hedge-fund quant research for memecoins on Solana and Robinhood Chain. Claude invents strategies; the engine prices rugs, slippage and MEV, and kills the lucky ones.">
+<meta name="theme-color" content="#050706">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Your best memecoin backtest is probably luck.">
+<meta property="og:description" content="Hedge-fund quant research for memecoins on Solana and Robinhood Chain. Open source, MIT.">
+<meta property="og:url" content="https://zostaff.github.io/quant-memcoins-researcher/">
+<meta property="og:image" content="https://zostaff.github.io/quant-memcoins-researcher/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://zostaff.github.io/quant-memcoins-researcher/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23C8FF3D'/%3E%3Cpath d='M7 21l6-6 4 4 8-8' stroke='%23050706' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#050706; --bg2:#080b09; --card:#0b0f0c; --card2:#0f1410;
+  --line:#1a211c; --line2:#26302a;
+  --text:#EEF3EC; --soft:#c3cdc5; --muted:#8a978d;
+  --lime:#C8FF3D; --lime-dim:rgba(200,255,61,.12); --lime-glow:rgba(200,255,61,.45);
+  --green:#33E28A; --red:#FF4D6D; --red-dim:rgba(255,77,109,.12); --amber:#FFC23D;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:18px; --wrap:1180px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+html,body{background:var(--bg);color:var(--text)}
+body{margin:0;font:16px/1.55 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+img{max-width:100%;display:block}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
+.g{color:var(--green)} .r{color:var(--red)} .l{color:var(--lime)} .m{color:var(--muted)}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:rgba(5,7,6,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:28px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-weight:900;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+.brand i{width:30px;height:30px;border-radius:9px;background:var(--lime);display:grid;place-items:center;box-shadow:0 0 22px var(--lime-glow)}
+.brand b{color:var(--lime)}
+.links{display:flex;gap:22px;margin-left:auto}
+.links a{text-decoration:none;color:var(--muted);font-size:14px}
+.links a:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:9px;white-space:nowrap;border-radius:12px;padding:12px 18px;font-weight:600;font-size:15px;text-decoration:none;border:1px solid var(--line2);background:var(--card);transition:transform .15s,border-color .15s,background .15s}
+.btn:hover{transform:translateY(-1px);border-color:#3a473e}
+.btn.lime{background:var(--lime);color:var(--bg);border-color:var(--lime);box-shadow:0 0 28px rgba(200,255,61,.25)}
+.btn.lime:hover{box-shadow:0 0 38px rgba(200,255,61,.4)}
+.btn.sm{padding:8px 14px;font-size:14px;border-radius:10px}
+.btn svg{width:18px;height:18px}
+
+/* hero */
+.hero{position:relative;padding:96px 0 72px;overflow:hidden}
+.hero:before{content:"";position:absolute;inset:-20% -10% auto;height:620px;background:radial-gradient(700px 360px at 22% 18%,rgba(200,255,61,.17),transparent 62%),radial-gradient(600px 340px at 92% 70%,rgba(51,226,138,.08),transparent 60%);pointer-events:none}
+.hero:after{content:"";position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(900px 480px at 35% 30%,#000 15%,transparent 72%);-webkit-mask-image:radial-gradient(900px 480px at 35% 30%,#000 15%,transparent 72%);opacity:.55;pointer-events:none}
+.hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:center}
+.kick{font-family:var(--mono);font-size:13px;letter-spacing:.16em;color:var(--lime);text-transform:uppercase}
+h1{font-family:var(--display);font-weight:900;font-size:clamp(40px,6.4vw,82px);line-height:.98;letter-spacing:-.035em;margin:18px 0 0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--lime);text-shadow:0 0 42px var(--lime-glow)}
+.lede{font-size:clamp(17px,1.6vw,20px);color:var(--soft);max-width:620px;margin:24px 0 0;line-height:1.5}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.cmd{display:flex;align-items:center;gap:12px;margin-top:22px;max-width:560px;border:1px solid var(--line2);background:rgba(11,15,12,.85);border-radius:12px;padding:6px 6px 6px 16px;font-family:var(--mono);font-size:14px}
+.cmd code{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--soft)}
+.cmd code:before{content:"$ ";color:var(--lime)}
+.copy{border:1px solid var(--line2);background:var(--card2);border-radius:8px;padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--muted);flex:none}
+.copy:hover{color:var(--text)}
+.copy.ok{color:var(--bg);background:var(--lime);border-color:var(--lime)}
+
+.verdict{border:1px solid var(--line2);border-radius:22px;background:rgba(11,15,12,.92);padding:24px;box-shadow:0 40px 90px rgba(0,0,0,.55);position:relative}
+.verdict .top{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:10px}
+.verdict .top span:last-child{color:var(--amber);background:rgba(255,194,61,.1);border-radius:6px;padding:3px 7px}
+.vrow{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:15px}
+.vrow span:first-child{color:var(--muted)}
+.stamp{margin-top:18px;border:1px solid rgba(255,77,109,.5);background:var(--red-dim);color:var(--red);border-radius:14px;padding:14px 16px;font-family:var(--display);font-weight:900;font-size:17px;letter-spacing:.01em;opacity:0;transform:scale(1.25) rotate(-3deg);transition:opacity .35s,transform .45s cubic-bezier(.2,1.6,.4,1)}
+.stamp.on{opacity:1;transform:none}
+.stamp small{display:block;font-family:var(--body);font-weight:400;font-size:13px;color:#ffb3c0;margin-top:4px;letter-spacing:0}
+
+/* tape */
+.tape{border-block:1px solid var(--line);background:var(--bg2);overflow:hidden;white-space:nowrap}
+.tape div{display:inline-flex;gap:48px;padding:16px 0;animation:tape 38s linear infinite;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.tape b{color:var(--lime);font-weight:500}
+@keyframes tape{to{transform:translateX(-50%)}}
+
+/* sections */
+section{padding:104px 0}
+.sh{max-width:760px;margin-bottom:44px}
+.sh .kick{display:flex;align-items:center;gap:10px}
+.sh .kick:before{content:"";width:22px;height:2px;background:var(--lime);border-radius:2px}
+h2{font-family:var(--display);font-weight:900;font-size:clamp(30px,4vw,50px);line-height:1.02;letter-spacing:-.03em;margin:14px 0 0;text-wrap:balance}
+h2 em{font-style:normal;color:var(--lime)}
+.sh p{color:var(--soft);font-size:18px;margin:18px 0 0}
+.card{border:1px solid var(--line2);background:var(--card);border-radius:var(--r);min-width:0}
+.demo>*,.labs>*,.chains>*,.start>*,.hero .wrap>*{min-width:0}
+
+/* demo */
+.demo{display:grid;grid-template-columns:1.35fr .65fr;gap:20px}
+.term{overflow:hidden;display:flex;flex-direction:column}
+.term .bar{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.term .bar i{width:11px;height:11px;border-radius:50%;background:#28312b}
+.seg{margin-left:auto;display:flex;background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;border-radius:7px;padding:6px 12px;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.seg button[aria-pressed=true]{background:var(--lime);color:var(--bg);font-weight:600}
+.term pre{margin:0;padding:20px 22px 24px;font:14px/1.7 var(--mono);color:#d6dfd8;overflow-x:auto;min-height:430px;white-space:pre}
+.term .h{color:var(--lime);font-weight:600}
+.term .v{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,77,109,.45);border-radius:6px;padding:1px 8px;font-weight:600}
+.caret{display:inline-block;width:8px;height:16px;background:var(--lime);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.why{padding:24px;display:flex;flex-direction:column;gap:16px}
+.why h3{font-family:var(--display);font-size:18px;margin:0}
+.reason{display:flex;gap:14px;align-items:flex-start;padding-top:16px;border-top:1px solid var(--line)}
+.reason .n{flex:none;font-family:var(--mono);font-size:12px;color:var(--bg);background:var(--red);border-radius:6px;padding:2px 7px;margin-top:2px}
+.reason b{display:block;font-weight:600}
+.reason span{color:var(--muted);font-size:14px}
+
+/* features */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feat{padding:26px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
+.feat:hover{border-color:rgba(200,255,61,.45);transform:translateY(-2px)}
+.feat .ico{font-size:26px;line-height:1}
+.feat .bad{font-family:var(--mono);font-size:12px;color:var(--red);margin:16px 0 6px;text-decoration:line-through;text-decoration-color:rgba(255,77,109,.6)}
+.feat h3{font-family:var(--display);font-size:19px;margin:0 0 10px;letter-spacing:-.01em}
+.feat p{margin:0;color:var(--soft);font-size:15px}
+.feat code{font-family:var(--mono);font-size:13px;color:var(--lime);background:var(--lime-dim);padding:1px 6px;border-radius:5px}
+.feat.wide{grid-column:span 2;display:flex;gap:28px;align-items:center;background:linear-gradient(120deg,rgba(200,255,61,.08),transparent 55%),var(--card)}
+.feat.wide>div:not(.ico){flex:1}
+.feat.wide .ico{font-size:54px;flex:none;width:96px;height:96px;display:grid;place-items:center;border-radius:22px;background:var(--lime-dim);border:1px solid rgba(200,255,61,.25)}
+
+/* pipeline */
+.pipe{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;counter-reset:s}
+.step{padding:22px 18px;position:relative;opacity:.35;transform:translateY(10px);transition:opacity .5s,transform .5s,border-color .5s,box-shadow .5s}
+.step.on{opacity:1;transform:none}
+.step.k.on{border-color:rgba(200,255,61,.55);box-shadow:0 0 34px rgba(200,255,61,.1)}
+.step .n{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.step h3{font-family:var(--display);font-size:17px;margin:8px 0 8px}
+.step.k h3{color:var(--lime)}
+.step p{margin:0;font-size:14px;color:var(--soft)}
+.step:not(:last-child):after{content:"→";position:absolute;right:-12px;top:50%;transform:translate(50%,-50%);color:var(--lime);font-size:18px;z-index:2}
+.pipe-foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:22px;font-family:var(--mono);font-size:13px;color:var(--muted)}
+
+/* labs */
+.labs{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.lab{padding:28px}
+.lab h3{font-family:var(--display);font-size:22px;margin:0;letter-spacing:-.01em}
+.lab>p{color:var(--soft);margin:10px 0 22px;font-size:15px}
+.ctrl{margin-bottom:18px}
+.ctrl label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);margin-bottom:8px}
+.ctrl label output{font-family:var(--mono);color:var(--text)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:var(--line2);outline-offset:6px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--lime);box-shadow:0 0 14px var(--lime-glow);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border:0;border-radius:50%;background:var(--lime);cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line2);background:var(--bg);border-radius:999px;padding:7px 13px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.chip[aria-pressed=true]{background:var(--lime);color:var(--bg);border-color:var(--lime);font-weight:600}
+.out{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+.out div{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px}
+.out span{display:block;font-size:12px;color:var(--muted)}
+.out b{display:block;font-family:var(--mono);font-size:22px;font-weight:500;margin-top:4px}
+.bar-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:18px;background:var(--line)}
+.bar-stack i{display:block;height:100%;transition:width .3s}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12px;color:var(--muted);font-family:var(--mono)}
+.legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;background:var(--c)}
+.note{font-size:12.5px;color:var(--muted);margin-top:16px}
+#hist{width:100%;height:190px;display:block;margin-top:6px}
+.lab .row2{display:flex;gap:10px;align-items:center;margin-top:4px}
+
+/* chains */
+.chains{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.chain{padding:28px}
+.chain .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.chain h3{font-family:var(--display);font-size:24px;margin:0}
+.chain .tag{font-family:var(--mono);font-size:12px;color:var(--bg);background:var(--lime);border-radius:6px;padding:3px 8px}
+.kv{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid var(--line);font-size:15px}
+.kv span:first-child{color:var(--muted);flex:none}
+.kv span:last-child{text-align:right}
+
+/* preview */
+.shot{padding:10px;border-radius:24px;background:linear-gradient(180deg,rgba(200,255,61,.25),rgba(200,255,61,.02) 40%);}
+.shot img{border-radius:16px;border:1px solid var(--line2)}
+.shot-cap{text-align:center;color:var(--muted);font-size:13px;margin-top:14px}
+
+/* start */
+.start{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.code{padding:0;overflow:hidden}
+.code .hd{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 12px 18px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--muted)}
+.code pre{margin:0;padding:18px;font:13.5px/1.75 var(--mono);color:var(--soft);overflow-x:auto}
+.code pre .c{color:#5f6d63}
+.code pre .p{color:var(--lime)}
+.cmds{grid-column:span 2;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.cmds div{padding:18px}
+.cmds code{font-family:var(--mono);color:var(--lime);font-size:14px}
+.cmds p{margin:6px 0 0;color:var(--muted);font-size:14px}
+
+/* limits */
+.limits{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.limits div{padding:22px}
+.limits h3{font-size:16px;margin:0 0 8px;font-weight:600}
+.limits p{margin:0;color:var(--muted);font-size:14px}
+
+/* final */
+.final{text-align:center;padding:120px 0;position:relative;overflow:hidden}
+.final:before{content:"";position:absolute;inset:auto 0 -40% 0;height:520px;background:radial-gradient(600px 300px at 50% 60%,rgba(200,255,61,.16),transparent 70%)}
+.final h2{font-size:clamp(34px,5.4vw,68px)}
+.final .cta{justify-content:center}
+footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:var(--soft)}
+
+.rv{opacity:0;transform:translateY(16px);transition:opacity .7s,transform .7s}
+.rv.on{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv,.step{opacity:1;transform:none}.stamp{opacity:1;transform:none}}
+
+@media (max-width:980px){
+  .hero .wrap,.demo,.labs,.chains,.start{grid-template-columns:1fr}
+  .feats{grid-template-columns:1fr 1fr}
+  .feat.wide{grid-column:span 2}
+  .pipe{grid-template-columns:repeat(3,1fr)}
+  .step:nth-child(3):after{display:none}
+  .limits{grid-template-columns:1fr 1fr}
+  .cmds{grid-column:auto;grid-template-columns:1fr}
+  .links{display:none}
+  nav .wrap .btn{margin-left:auto}
+}
+@media (max-width:620px){
+  .wrap{padding:0 16px}
+  section{padding:72px 0}
+  .hero{padding:56px 0 48px}
+  .feats,.limits{grid-template-columns:1fr}
+  .feat.wide{grid-column:auto;flex-direction:column;align-items:flex-start}
+  .pipe{grid-template-columns:1fr}
+  .step:after{display:none}
+  .out{grid-template-columns:1fr 1fr}
+  .term pre{font-size:12px;min-height:0}
+  .brand span{display:none}
+  .cmd{font-size:12.5px}
+}
+</style>
+</head>
+<body>
+
+<nav aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="#top"><i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#050706" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/></svg></i><span>quant-memcoins-<b>researcher</b></span></a>
+    <div class="links">
+      <a href="#demo">Demo</a><a href="#features">Features</a><a href="#pipeline">Pipeline</a><a href="#labs">Try it</a><a href="#chains">Chains</a><a href="#start">Quick start</a>
+    </div>
+    <a class="btn sm" href="https://github.com/zostaff/quant-memcoins-researcher"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>GitHub</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <div class="kick">Hedge-fund research · Solana + Robinhood Chain</div>
+      <h1>Your best memecoin backtest is <em>probably luck.</em></h1>
+      <p class="lede">The research stack a hedge fund would use, pointed at memecoins. Claude invents strategies. The engine prices in rugs, curve slippage and MEV, counts every variant you tried, and kills whatever was luck or market beta.</p>
+      <div class="cta">
+        <a class="btn lime" href="https://github.com/zostaff/quant-memcoins-researcher">Get the code</a>
+        <a class="btn" href="#demo">See a +127% strategy get rejected</a>
+      </div>
+      <div class="cmd"><code id="c-clone">git clone https://github.com/zostaff/quant-memcoins-researcher</code><button class="copy" data-copy="c-clone">copy</button></div>
+    </div>
+    <aside class="verdict" aria-label="Example tear sheet">
+      <div class="top"><span>tear sheet · best of 20</span><span>demo tape</span></div>
+      <div class="vrow"><span>return</span><span class="g" data-count="126.8" data-fmt="+%.1f%">+126.8%</span></div>
+      <div class="vrow"><span>sharpe</span><span class="g" data-count="5.67" data-fmt="%.2f">5.67</span></div>
+      <div class="vrow"><span>sharpe, halves</span><span><span class="r">-3.46</span> / <span class="g">14.77</span></span></div>
+      <div class="vrow"><span>meme-market β</span><span>0.29</span></div>
+      <div class="vrow"><span>alpha t-stat</span><span class="r">-0.73</span></div>
+      <div class="vrow"><span>deflated sharpe p</span><span class="r">0.706</span></div>
+      <div class="stamp" id="stamp">REJECTED<small>The profit was the market, not the signal.</small></div>
+    </aside>
+  </div>
+</header>
+
+<div class="tape" aria-hidden="true"><div>
+  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>139</b> tests passing</span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
+  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>139</b> tests passing</span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
+</div></div>
+
+<section id="demo">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">01 · The demo</div>
+      <h2>+127% in a backtest. <em>Rejected anyway.</em></h2>
+      <p>Twenty strategy variants on two synthetic tapes. One has no edge at all, one has an edge planted in it. This is the real output of <code class="mono l">python -m ai_quant_lab.meme demo</code>.</p>
+    </div>
+    <div class="demo">
+      <div class="card term rv">
+        <div class="bar"><i></i><i></i><i></i>
+          <div class="seg" role="group" aria-label="Tape">
+            <button aria-pressed="true" data-tape="edge">EDGE TAPE</button>
+            <button aria-pressed="false" data-tape="null">NULL TAPE</button>
+          </div>
+        </div>
+        <pre id="term" aria-live="polite"></pre>
+      </div>
+      <div class="card why rv">
+        <h3 id="why-title">Why it was rejected</h3>
+        <div id="why"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features" style="background:var(--bg2);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">02 · What it does</div>
+      <h2>Every tool a fund uses to <em>stop fooling itself.</em></h2>
+      <p>Rebuilt for a market where most tokens are dead within a day.</p>
+    </div>
+    <div class="feats">
+      <div class="card feat wide rv"><div class="ico">🪦</div><div><div class="bad">tests only tokens alive today</div><h3>Point-in-time universe</h3><p>Pools are recorded the moment they launch. Dead tokens stay in the panel, and a rug while you hold it is written off to zero. Token fields are known only from the moment they were observed.</p></div></div>
+      <div class="card feat rv"><div class="ico">💧</div><div class="bad">flat 1% slippage</div><h3>Exact curve cost</h3><p>Constant-product loss <code>1-(1-f)·Q/(Q+s)</code> per trade, plus priority fee, MEV haircut and the pool's real fee tier.</p></div>
+      <div class="card feat rv"><div class="ico">🐋</div><div class="bad">size the pool can't absorb</div><h3>Participation cap</h3><p>A position is at most 2% of pool TVL. The book rebalances only past a 25% drift, so fixed fees don't eat it.</p></div>
+      <div class="card feat rv"><div class="ico">📈</div><div class="bad">"+120% alpha"</div><h3>Alpha vs beta</h3><p>Meme factors MKT, SIZE, MOM, AGE and FLOW, rugs included, and an OLS split of signal vs market.</p></div>
+      <div class="card feat rv"><div class="ico">🏦</div><div class="bad">"it scales"</div><h3>Capacity curve</h3><p>The same weights at $1k, $10k, $100k and $1M. Capacity is where return on capital halves.</p></div>
+      <div class="card feat rv"><div class="ico">🎰</div><div class="bad">keep the best of 50 tries</div><h3>Deflated Sharpe</h3><p>Every variant is written to SQLite. Significance is paid for with the honest trial count, and the counter can't be reset.</p></div>
+      <div class="card feat wide rv"><div class="ico">🚩</div><div><div class="bad">ignore who holds the supply</div><h3>Rug screen</h3><p>Holders, top-10 wallet share, mint and freeze authority, bonding-curve progress, all point-in-time. <code>rug_screen()</code> lets a strategy drop launches with a concentrated supply or a live mint authority.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">03 · Pipeline</div>
+      <h2>How a strategy <em>gets killed.</em></h2>
+      <p>Generation is cheap; validation is expensive. Claude is fast at ideas, so the system spends its effort on the part people skip.</p>
+    </div>
+    <div class="pipe" id="pipe">
+      <div class="card step"><div class="n">01</div><h3>Hypothesis</h3><p>Claude proposes a signal from holder growth, flow, liquidity, age and curve progress.</p></div>
+      <div class="card step"><div class="n">02</div><h3>Critic</h3><p>A second Claude call attacks the idea before any compute is spent.</p></div>
+      <div class="card step"><div class="n">03</div><h3>Sandbox</h3><p>Generated code is AST-checked: numpy, pandas and the feature library only.</p></div>
+      <div class="card step k"><div class="n">04</div><h3>Backtest</h3><p>Long-only, point-in-time, curve costs, MEV, 2% of TVL, rugs to zero.</p></div>
+      <div class="card step k"><div class="n">05</div><h3>Gates</h3><p>Deflated Sharpe over every trial, then correlation and PCA against survivors. No overrides.</p></div>
+      <div class="card step"><div class="n">06</div><h3>Tear sheet</h3><p>Meme-factor betas, capacity, both halves, verdict.</p></div>
+    </div>
+    <div class="pipe-foot"><span>every variant is written to SQLite · the trial counter cannot be reset</span><span><span class="r">REJECT</span> luck · beta · loss &nbsp; <span class="g">PASS</span> real edge</span></div>
+  </div>
+</section>
+
+<section id="labs" style="background:var(--bg2);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">04 · Try it</div>
+      <h2>The math, <em>live in your browser.</em></h2>
+      <p>Both calculators use the same formulas as the engine.</p>
+    </div>
+    <div class="labs">
+      <div class="card lab rv">
+        <h3>What a round trip really costs</h3>
+        <p>Buy, then sell the same size at unchanged liquidity. Curve slippage grows with size; the fixed fee hurts small tickets.</p>
+        <div class="ctrl"><label>Chain</label>
+          <div class="chips" role="group" aria-label="Chain">
+            <button class="chip" aria-pressed="true" data-chain="solana">Solana</button>
+            <button class="chip" aria-pressed="false" data-chain="robinhood">Robinhood Chain</button>
+          </div>
+        </div>
+        <div class="ctrl" id="tier-ctrl" hidden><label>Pool fee tier</label>
+          <div class="chips" role="group" aria-label="Fee tier">
+            <button class="chip" aria-pressed="true" data-fee="0.01">1%</button>
+            <button class="chip" aria-pressed="false" data-fee="0.003">0.3%</button>
+            <button class="chip" aria-pressed="false" data-fee="0.0001">0.01%</button>
+          </div>
+        </div>
+        <div class="ctrl"><label for="tvl">Pool liquidity (TVL) <output id="tvl-o"></output></label><input id="tvl" type="range" min="0" max="100" value="45"></div>
+        <div class="ctrl"><label for="size">Trade size <output id="size-o"></output></label><input id="size" type="range" min="0" max="100" value="40"></div>
+        <div class="out">
+          <div><span>Round trip cost</span><b id="rt"></b></div>
+          <div><span>In dollars</span><b id="rt-usd"></b></div>
+          <div><span>Share of pool</span><b id="share"></b></div>
+        </div>
+        <div class="bar-stack" aria-hidden="true"><i id="b-fee" style="background:var(--lime)"></i><i id="b-curve" style="background:var(--green)"></i><i id="b-mev" style="background:var(--red)"></i><i id="b-fix" style="background:var(--amber)"></i></div>
+        <div class="legend"><span style="--c:var(--lime)" id="l-fee"></span><span style="--c:var(--green)" id="l-curve"></span><span style="--c:var(--red)" id="l-mev"></span><span style="--c:var(--amber)" id="l-fix"></span></div>
+        <p class="note">Constant product is exact for bonding curves and conservative for concentrated liquidity. Gas and MEV presets are placeholders.</p>
+      </div>
+
+      <div class="card lab rv">
+        <h3>The multiple-testing tax</h3>
+        <p>Run N strategies with zero edge. The best one still looks good. This is what the deflated Sharpe charges for.</p>
+        <div class="ctrl"><label for="ntr">Strategies tried <output id="ntr-o"></output></label><input id="ntr" type="range" min="0" max="100" value="55"></div>
+        <div class="ctrl"><label for="yrs">History, years <output id="yrs-o"></output></label><input id="yrs" type="range" min="1" max="20" value="5"></div>
+        <svg id="hist" viewBox="0 0 520 190" role="img" aria-label="Histogram of Sharpe ratios of random strategies"></svg>
+        <div class="row2"><button class="btn sm lime" id="rerun">Run them again</button><span class="m" style="font-size:13px">every bar is a strategy with no edge</span></div>
+        <div class="out">
+          <div><span>Best of N, this run</span><b id="best" class="g"></b></div>
+          <div><span>Expected best</span><b id="exp"></b></div>
+          <div><span>Real edge needed</span><b id="need" class="l"></b></div>
+        </div>
+        <p class="note">Annualized Sharpe of a no-edge strategy is roughly normal with spread 1/√years; the expected maximum follows the formula used in the deflated Sharpe test.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="chains">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">05 · Chains</div>
+      <h2>Two chains, <em>one database.</em></h2>
+      <p>Data comes from the free GeckoTerminal API. The collector registers every new pool on both chains and keeps snapshotting them.</p>
+    </div>
+    <div class="chains">
+      <div class="card chain rv">
+        <div class="hd"><h3>Solana</h3><span class="tag">solana</span></div>
+        <div class="kv"><span>Venues</span><span>pump.fun, PumpSwap, Meteora</span></div>
+        <div class="kv"><span>Pool fee</span><span class="mono">1%</span></div>
+        <div class="kv"><span>Per transaction</span><span>priority fee + tip, <span class="mono">$0.10</span></span></div>
+        <div class="kv"><span>MEV</span><span>sandwiches common, <span class="mono">0.2%</span></span></div>
+        <div class="kv"><span>Token fields</span><span>holders, top-10, mint / freeze, curve progress</span></div>
+      </div>
+      <div class="card chain rv">
+        <div class="hd"><h3>Robinhood Chain</h3><span class="tag">robinhood</span></div>
+        <div class="kv"><span>Venues</span><span>Uniswap v4 / v3, Pons, Bankr</span></div>
+        <div class="kv"><span>Pool fee</span><span>from each pool's tier: <span class="mono">1% · 0.3% · 0.01%</span></span></div>
+        <div class="kv"><span>Per transaction</span><span>L2 gas in ETH, <span class="mono">$0.02</span></span></div>
+        <div class="kv"><span>MEV</span><span>sequencer, no public mempool, <span class="mono">0.1%</span></span></div>
+        <div class="kv"><span>Token fields</span><span>holders, top-10, Pons curve progress</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="shot rv"><img src="assets/dashboard.png" alt="Dashboard concept: strategy arena, tear sheet and launch feed" loading="lazy" width="2880" height="1800"></div>
+    <p class="shot-cap">Dashboard concept with sample data. The engine itself is a Python library and CLI.</p>
+  </div>
+</section>
+
+<section id="start" style="background:var(--bg2);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">06 · Quick start</div>
+      <h2>Running in <em>a minute.</em></h2>
+      <p>The demo needs no API key and no data. Research needs an Anthropic key and a few days of collected history.</p>
+    </div>
+    <div class="start">
+      <div class="card code rv"><div class="hd"><span>install</span><button class="copy" data-copy="c-install">copy</button></div>
+<pre id="c-install">git clone https://github.com/zostaff/quant-memcoins-researcher
+cd quant-memcoins-researcher
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env    <span class="c"># ANTHROPIC_API_KEY for research</span></pre></div>
+      <div class="card code rv"><div class="hd"><span>run</span><button class="copy" data-copy="c-run">copy</button></div>
+<pre id="c-run">python -m ai_quant_lab.meme demo
+python -m ai_quant_lab.meme run  --db data/meme.db
+python -m ai_quant_lab.meme info --db data/meme.db
+python -m ai_quant_lab.meme research --db data/meme.db \
+       --network robinhood --iterations 20</pre></div>
+      <div class="cmds">
+        <div class="card rv"><code>demo</code><p>Tear sheets on synthetic tapes, no key or data needed.</p></div>
+        <div class="card rv"><code>run</code><p>Collect and refresh candles on every chain, forever.</p></div>
+        <div class="card rv"><code>research</code><p>Claude proposes strategies on your panel; the gates decide.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">07 · Limits</div>
+      <h2>What it <em>does not</em> do.</h2>
+    </div>
+    <div class="limits">
+      <div class="card rv"><h3>It does not trade</h3><p>No wallet, no execution. It tells you whether a strategy is worth trading.</p></div>
+      <div class="card rv"><h3>Costs are a model</h3><p>Exact for bonding curves, conservative for concentrated liquidity. Calibrate on real fills.</p></div>
+      <div class="card rv"><h3>Free data has gaps</h3><p>Holder counts arrive late for fresh tokens; mint and freeze aren't reported on EVM chains.</p></div>
+      <div class="card rv"><h3>History is collected</h3><p>The panel knows only what the collector saw, from the moment it started.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="final">
+  <div class="wrap" style="position:relative">
+    <div class="kick">Open source · MIT</div>
+    <h2 style="margin-top:16px">Build slow. Validate hard. <em>Trade small.</em></h2>
+    <div class="cta"><a class="btn lime" href="https://github.com/zostaff/quant-memcoins-researcher">Star on GitHub</a><a class="btn" href="https://github.com/zostaff/quant-memcoins-researcher/blob/main/docs/MEMECOIN.md">Read the docs</a></div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>quant-memcoins-researcher · MIT · built on <a href="https://github.com/zostaff/ai-quant-researcher">ai-quant-researcher</a></span>
+    <span>Not investment advice. Memecoins go to zero; so can you.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // copy buttons
+  $$("[data-copy]").forEach(b => b.addEventListener("click", async () => {
+    const t = $("#" + b.dataset.copy).innerText.replace(/\s+#.*$/gm, "");
+    try { await navigator.clipboard.writeText(t); b.textContent = "copied"; b.classList.add("ok"); }
+    catch { b.textContent = "select"; }
+    setTimeout(() => { b.textContent = "copy"; b.classList.remove("ok"); }, 1400);
+  }));
+
+  // reveal on scroll
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    e.target.classList.add("on"); io.unobserve(e.target);
+  }), { threshold: .12 });
+  $$(".rv").forEach(el => io.observe(el));
+
+  // pipeline lights up step by step
+  const pio = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    $$(".step").forEach((s, i) => setTimeout(() => s.classList.add("on"), reduce ? 0 : i * 260));
+    pio.disconnect();
+  }), { threshold: .3 });
+  pio.observe($("#pipe"));
+
+  // hero stamp
+  setTimeout(() => $("#stamp").classList.add("on"), reduce ? 0 : 1100);
+
+  // demo terminal (real output of `python -m ai_quant_lab.meme demo`)
+  const T = {
+    edge: [
+      ["h", "=== tape with a planted edge ==="],
+      ["", "20 variants tried, 12 with positive Sharpe"],
+      ["", "best: holder growth over 288 bars, top 24 -> Sharpe <g>+5.67</g>, return <g>+126.8%</g>"],
+      ["k", "capital", "$2,000 -> $4,536 <g>(+126.8%)</g>"],
+      ["k", "sharpe (ann.)", "<g>+5.67</g>   max DD <r>-63.4%</r>"],
+      ["k", "execution cost", "$4,793  <m>(fee $1,808, impact $2,254, mev $362, priority $370)</m>"],
+      ["k", "avg positions", "17.5   invested 91%   capped by pool size 1%"],
+      ["k", "capacity", "$10,000"],
+      ["k", "halves sharpe", "<r>-3.46</r> / <g>+14.77</g>"],
+      ["k", "factor betas", "MKT <r>+0.29</r>, SIZE -0.06, MOM +0.02, AGE -0.18, FLOW -0.03"],
+      ["k", "alpha t-stat", "<r>-0.73</r>"],
+      ["k", "deflated sharpe", "p=<r>0.706</r> over 20 trials"],
+      ["v", "verdict", "REJECT: the best of many tries"],
+    ],
+    null: [
+      ["h", "=== NULL tape (no edge) ==="],
+      ["", "20 variants tried, <r>0</r> with positive Sharpe"],
+      ["", "best: holder growth over 72 bars, top 4 -> Sharpe <r>-9.19</r>, return <r>-86.8%</r>"],
+      ["k", "capital", "$2,000 -> $265 <r>(-86.8%)</r>"],
+      ["k", "sharpe (ann.)", "<r>-9.19</r>   max DD <r>-88.2%</r>"],
+      ["k", "execution cost", "$1,655  <m>(fee $671, impact $745, mev $134, priority $104)</m>"],
+      ["k", "avg positions", "3.9   invested 39%   capped by pool size 0%"],
+      ["k", "capacity", "$0"],
+      ["k", "halves sharpe", "<r>-6.61</r> / <r>-11.65</r>"],
+      ["k", "factor betas", "MKT +0.06, SIZE -0.02, MOM +0.01, AGE +0.05, FLOW +0.01"],
+      ["k", "alpha t-stat", "<r>-0.27</r>"],
+      ["k", "deflated sharpe", "p=<r>1.000</r> over 20 trials"],
+      ["v", "verdict", "REJECT: the best of many tries"],
+    ],
+  };
+  const WHY = {
+    edge: { t: "Why +127% was rejected", r: [
+      ["Losing first half", "Sharpe −3.46, then +14.77. One good half is a regime, not a strategy."],
+      ["It was the market", "0.29 beta to the meme market; alpha t-stat −0.73 is not significant."],
+      ["Best of 20 tries", "Deflated Sharpe p = 0.706: 20 random tries would produce this often."],
+      ["Small capacity", "Return on capital halves by about $10k."],
+    ]},
+    null: { t: "No edge, and costs show it", r: [
+      ["Costs ate the book", "$1,655 of fees, impact, MEV and priority fees on $2,000."],
+      ["Nothing positive", "0 of 20 variants made money. Nothing to deflate."],
+      ["No exposure to blame", "Factor R² 0.04: the losses were trading costs, not the market."],
+    ]},
+  };
+  const fmt = s => s.replace(/<g>/g, '<span class="g">').replace(/<r>/g, '<span class="r">').replace(/<m>/g, '<span class="m">').replace(/<\/[grm]>/g, "</span>");
+  const lineHtml = ([k, a, b]) => k === "h" ? `<span class="h">${a}</span>`
+    : k === "k" ? `<span class="m">${a.padEnd(18)}</span> ${fmt(b)}`
+    : k === "v" ? `<span class="m">${a.padEnd(18)}</span> <span class="v">${b}</span>`
+    : fmt(a);
+  let timer;
+  function play(tape) {
+    clearTimeout(timer);
+    const pre = $("#term"), lines = T[tape];
+    const head = '<span class="l">$</span> python -m ai_quant_lab.meme demo\n\n';
+    let i = 0;
+    const tick = () => {
+      pre.innerHTML = head + lines.slice(0, i).map(lineHtml).join("\n") + (i < lines.length ? '\n<span class="caret"></span>' : "");
+      if (i++ < lines.length) timer = setTimeout(tick, reduce ? 0 : (i < 3 ? 260 : 150));
+    };
+    tick();
+    $("#why-title").textContent = WHY[tape].t;
+    $("#why").innerHTML = WHY[tape].r.map(([b, s], n) => `<div class="reason"><span class="n">${n + 1}</span><div><b>${b}</b><span>${s}</span></div></div>`).join("");
+  }
+  $$("[data-tape]").forEach(b => b.addEventListener("click", () => {
+    $$("[data-tape]").forEach(x => x.setAttribute("aria-pressed", x === b));
+    play(b.dataset.tape);
+  }));
+  const dio = new IntersectionObserver(es => { if (es[0].isIntersecting) { play("edge"); dio.disconnect(); } }, { threshold: .25 });
+  dio.observe($("#term"));
+
+  // cost lab: same formulas as ai_quant_lab/meme/amm.py
+  const PRESET = { solana: { fee: .01, fix: .10, mev: .002 }, robinhood: { fee: .01, fix: .02, mev: .001 } };
+  let chain = "solana", tierFee = .01;
+  const logMap = (v, lo, hi) => lo * Math.pow(hi / lo, v / 100);
+  const usd = x => x >= 1e6 ? "$" + (x / 1e6).toFixed(x >= 1e7 ? 0 : 1) + "M" : x >= 1e3 ? "$" + (x / 1e3).toFixed(x >= 1e4 ? 0 : 1) + "k" : "$" + x.toFixed(x < 10 ? 2 : 0);
+  const pct = x => (x * 100).toFixed(x < .001 ? 3 : x < .1 ? 2 : 1) + "%";
+  function cost() {
+    const p = PRESET[chain], f = chain === "robinhood" ? tierFee : p.fee;
+    const tvl = logMap(+$("#tvl").value, 2e3, 5e6), s = logMap(+$("#size").value, 10, 2e5);
+    const Q = tvl / 2;
+    const leg = 1 - (1 - f) * Q / (Q + s);           // fee + curve, one leg
+    const feePart = f, curvePart = leg - f;
+    const parts = { fee: 2 * feePart * s, curve: 2 * curvePart * s, mev: 2 * p.mev * s, fix: 2 * p.fix };
+    const total = parts.fee + parts.curve + parts.mev + parts.fix;
+    $("#tvl-o").textContent = usd(tvl); $("#size-o").textContent = usd(s);
+    const rt = total / s;
+    const el = $("#rt"); el.textContent = pct(rt); el.className = rt > .2 ? "r" : rt > .05 ? "" : "g";
+    $("#rt-usd").textContent = usd(total);
+    $("#share").textContent = pct(s / tvl);
+    const share = (v) => (100 * v / total).toFixed(1) + "%";
+    $("#b-fee").style.width = share(parts.fee); $("#b-curve").style.width = share(parts.curve);
+    $("#b-mev").style.width = share(parts.mev); $("#b-fix").style.width = share(parts.fix);
+    $("#l-fee").textContent = "pool fee " + usd(parts.fee); $("#l-curve").textContent = "curve " + usd(parts.curve);
+    $("#l-mev").textContent = "MEV " + usd(parts.mev); $("#l-fix").textContent = (chain === "solana" ? "priority " : "gas ") + usd(parts.fix);
+  }
+  $$("[data-chain]").forEach(b => b.addEventListener("click", () => {
+    chain = b.dataset.chain;
+    $$("[data-chain]").forEach(x => x.setAttribute("aria-pressed", x === b));
+    $("#tier-ctrl").hidden = chain !== "robinhood"; cost();
+  }));
+  $$("[data-fee]").forEach(b => b.addEventListener("click", () => {
+    tierFee = +b.dataset.fee;
+    $$("[data-fee]").forEach(x => x.setAttribute("aria-pressed", x === b)); cost();
+  }));
+  ["tvl", "size"].forEach(id => $("#" + id).addEventListener("input", cost));
+  cost();
+
+  // multiple-testing lab
+  const EG = 0.5772156649015329;
+  function invNorm(p) { // Acklam
+    const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+    const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+    const c = [-.007784894002430293, -.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    const d = [.007784695709041462, .3224671290700398, 2.445134137142996, 3.754408661907416];
+    const pl = .02425;
+    if (p < pl) { const q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    if (p > 1 - pl) return -invNorm(1 - p);
+    const q = p - .5, r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  const expMax = N => N < 2 ? 0 : (1 - EG) * invNorm(1 - 1 / N) + EG * invNorm(1 - 1 / (N * Math.E));
+  const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  let sample = [];
+  function lab2(resample) {
+    const N = Math.max(1, Math.round(logMap(+$("#ntr").value, 1, 2000)));
+    const Y = +$("#yrs").value, sd = 1 / Math.sqrt(Y);
+    $("#ntr-o").textContent = N.toLocaleString("en-US"); $("#yrs-o").textContent = Y;
+    if (resample || sample.length !== N) sample = Array.from({ length: N }, gauss);
+    const srs = sample.map(z => z * sd), best = Math.max(...srs), e = sd * expMax(N);
+    $("#best").textContent = (best >= 0 ? "+" : "") + best.toFixed(2);
+    $("#exp").textContent = (e >= 0 ? "+" : "") + e.toFixed(2);
+    $("#need").textContent = "> " + (e + 1.645 * sd).toFixed(2);
+    // histogram
+    const W = 520, H = 190, pad = 22, lo = -3.2 * sd, hi = Math.max(3.6 * sd, best * 1.05), bins = 36;
+    const counts = new Array(bins).fill(0);
+    srs.forEach(v => { const k = Math.min(bins - 1, Math.max(0, Math.floor((v - lo) / (hi - lo) * bins))); counts[k]++; });
+    const mx = Math.max(...counts), bw = (W - 2 * pad) / bins, x = v => pad + (v - lo) / (hi - lo) * (W - 2 * pad);
+    let svg = `<line x1="${pad}" y1="${H - pad}" x2="${W - pad}" y2="${H - pad}" stroke="#26302a"/>`;
+    counts.forEach((c, k) => { if (!c) return; const h = (H - 2 * pad - 14) * c / mx; svg += `<rect x="${pad + k * bw + 1}" y="${H - pad - h}" width="${bw - 2}" height="${h}" rx="2" fill="#2a3a2e"/>`; });
+    svg += `<line x1="${x(0)}" y1="${pad - 4}" x2="${x(0)}" y2="${H - pad}" stroke="#8a978d" stroke-dasharray="3 4"/><text x="${x(0)}" y="${H - 6}" fill="#8a978d" font-size="11" font-family="Geist Mono,monospace" text-anchor="middle">0</text>`;
+    svg += `<line x1="${x(best)}" y1="${pad - 4}" x2="${x(best)}" y2="${H - pad}" stroke="#C8FF3D" stroke-width="2"/><circle cx="${x(best)}" cy="${pad - 4}" r="4" fill="#C8FF3D"/>`;
+    const lx = Math.min(x(best), W - 120);
+    svg += `<text x="${lx - 6}" y="${pad + 10}" fill="#C8FF3D" font-size="12" font-family="Geist Mono,monospace" text-anchor="end">best ${best.toFixed(2)}</text>`;
+    svg += `<text x="${W - pad}" y="${H - 6}" fill="#8a978d" font-size="11" font-family="Geist Mono,monospace" text-anchor="end">annualized Sharpe →</text>`;
+    $("#hist").innerHTML = svg;
+  }
+  $("#ntr").addEventListener("input", () => lab2(false));
+  $("#yrs").addEventListener("input", () => lab2(false));
+  $("#rerun").addEventListener("click", () => lab2(true));
+  lab2(true);
+})();
+</script>
+</body>
+</html>
