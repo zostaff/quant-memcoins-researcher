@@ -66,9 +66,16 @@ Constraints (non-negotiable):
    and after death), 'liquidity' (pool TVL in USD, 0 when dead), 'volume'
    (USD per bar) and, when available: 'holders' (holder count), 'top10_share'
    (supply share of the 10 largest wallets, 0..1), 'graduation' (pump.fun
-   bonding-curve progress, 0..1) and 'mint_risk' (1 if the creator can still
-   mint or freeze). Token fields are NaN until first observed; use
-   `panel.get(name)` and handle None.
+   bonding-curve progress, 0..1), 'mint_risk' (1 if the creator can still
+   mint or freeze), 'dev_share' (developer's share of supply), 'buy_ratio'
+   (share of buys in recent transactions) and 'trending_rank' (1 = top of the
+   GeckoTerminal trending list, NaN when not listed). Narrative and mood
+   fields, broadcast per token: 'narrative_heat' (the token's narrative, short
+   vs long share of volume; > 0 = gaining attention), 'narrative_return',
+   'launch_saturation' (copycat launches vs usual pace; > 2 = crowded),
+   'risk_appetite' (market-wide z-score; > 0 = risk-on) and 'breadth'.
+   Token fields are NaN until first observed; use `panel.get(name)` and
+   handle None.
 2. Return LONG-ONLY target weights shaped exactly like panel['close'].
    Weights >= 0, each row sums to <= 1 (the rest is cash). The engine caps
    each weight and each position's share of the pool.

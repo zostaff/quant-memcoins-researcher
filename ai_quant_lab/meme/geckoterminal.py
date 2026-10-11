@@ -10,12 +10,19 @@ the database whether it moons, bleeds out or gets rugged. Run the collector
 continuously (cron / launchd, every minute or two) and the universe you
 research on is the universe you could actually have traded.
 
-Four tables:
+Six tables:
     pools            one row per pool, first time we saw it
     snapshots        price, pool reserve, FDV and 5-minute flow at observation time
     token_snapshots  holders, top-10 share, mint/freeze authority, bonding-curve
-                     progress of the base token at observation time
+                     progress, developer share, honeypot flag at observation time
+    token_meta       name and symbol (immutable on chain, so usable from launch),
+                     plus GeckoTerminal categories and socials with the time they
+                     were first seen
+    trending         GeckoTerminal trending rank of each pool at observation time
     ohlcv            5-minute candles backfilled per pool
+
+Trending is recorded for pools we already track and never adds pools to the
+universe: a pool picked because it is trending was picked on its outcome.
 
 Holders come from the per-token `info` endpoint (one call per token), so each
 pass refreshes only a budget of the stalest tokens. Bonding-curve progress
@@ -86,7 +93,27 @@ CREATE TABLE IF NOT EXISTS token_snapshots (
     gt_score REAL,
     graduation_pct REAL,
     graduated INTEGER,
+    dev_pct REAL,
+    honeypot INTEGER,
     PRIMARY KEY (token, observed_at)
+);
+CREATE TABLE IF NOT EXISTS token_meta (
+    token TEXT PRIMARY KEY,
+    network TEXT,
+    name TEXT,
+    symbol TEXT,
+    first_seen_at TEXT NOT NULL,
+    categories TEXT,
+    twitter TEXT,
+    website TEXT,
+    info_observed_at TEXT
+);
+CREATE TABLE IF NOT EXISTS trending (
+    network TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    address TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    PRIMARY KEY (network, observed_at, address)
 );
 CREATE TABLE IF NOT EXISTS ohlcv (
     address TEXT NOT NULL,
@@ -139,6 +166,10 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
         conn.execute("ALTER TABLE pools ADD COLUMN network TEXT NOT NULL DEFAULT 'solana'")
     if "fee_pct" not in columns:
         conn.execute("ALTER TABLE pools ADD COLUMN fee_pct REAL")
+    token_columns = {row[1] for row in conn.execute("PRAGMA table_info(token_snapshots)")}
+    for column, kind in (("dev_pct", "REAL"), ("honeypot", "INTEGER")):
+        if column not in token_columns:
+            conn.execute(f"ALTER TABLE token_snapshots ADD COLUMN {column} {kind}")
     conn.commit()
     return conn
 
@@ -148,6 +179,7 @@ class CollectStats:
     new_pools: int
     snapshots: int
     token_snapshots: int = 0
+    trending: int = 0
 
 
 def collect_once(
@@ -204,9 +236,27 @@ def collect_once(
             snapshots += 1
 
     token_rows = _snapshot_tokens(conn, client, network, cutoff, now, holder_calls)
+    trending_rows = _snapshot_trending(conn, client, network, now)
     conn.commit()
     after = conn.execute("SELECT COUNT(*) FROM pools WHERE network = ?", (network,)).fetchone()[0]
-    return CollectStats(new_pools=after - before, snapshots=snapshots, token_snapshots=token_rows)
+    return CollectStats(
+        new_pools=after - before, snapshots=snapshots, token_snapshots=token_rows, trending=trending_rows
+    )
+
+
+def _snapshot_trending(conn: sqlite3.Connection, client: GeckoClient, network: str, now: str) -> int:
+    """Record the trending list. Ranks are stored for every listed pool; the
+    panel only uses them for pools that were already in the universe."""
+    payload = client.get(f"/networks/{network}/trending_pools")
+    rows = [
+        (network, now, pool["attributes"]["address"], rank)
+        for rank, pool in enumerate(payload.get("data", []), start=1)
+        if (pool.get("attributes") or {}).get("address")
+    ]
+    if not rows:
+        return 0
+    conn.executemany("INSERT OR IGNORE INTO trending VALUES (?, ?, ?, ?)", rows)
+    return len(rows)
 
 
 def _snapshot_tokens(
@@ -226,6 +276,12 @@ def _snapshot_tokens(
         payload = client.get(f"/networks/{network}/tokens/multi/{','.join(batch)}")
         for token in payload.get("data", []):
             attrs = token.get("attributes") or {}
+            if attrs.get("address"):
+                conn.execute(
+                    "INSERT OR IGNORE INTO token_meta (token, network, name, symbol, first_seen_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (attrs["address"], network, attrs.get("name"), attrs.get("symbol"), now),
+                )
             pad = attrs.get("launchpad_details") or {}
             if attrs.get("address") in rows and pad:
                 rows[attrs["address"]].update(
@@ -251,10 +307,28 @@ def _snapshot_tokens(
             mint_authority=_flag(attrs.get("mint_authority")),
             freeze_authority=_flag(attrs.get("freeze_authority")),
             gt_score=_num(attrs.get("gt_score")),
+            dev_pct=_num(attrs.get("developer_holding_percentage")),
+            honeypot=_flag(attrs.get("is_honeypot")),
         )
+        if attrs:
+            websites = attrs.get("websites") or []
+            conn.execute(
+                "INSERT OR IGNORE INTO token_meta (token, network, name, symbol, first_seen_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (token, network, attrs.get("name"), attrs.get("symbol"), now),
+            )
+            # Categories are curated by GeckoTerminal after the fact; keep the
+            # first observation time so research can treat them point-in-time.
+            conn.execute(
+                "UPDATE token_meta SET categories = COALESCE(categories, ?), twitter = COALESCE(twitter, ?), "
+                "website = COALESCE(website, ?), info_observed_at = COALESCE(info_observed_at, ?) "
+                "WHERE token = ?",
+                (json.dumps(attrs.get("gt_category_ids") or []), attrs.get("twitter_handle"),
+                 websites[0] if websites else None, now, token),
+            )
 
     columns = ("holders", "top10_pct", "mint_authority", "freeze_authority",
-               "gt_score", "graduation_pct", "graduated")
+               "gt_score", "graduation_pct", "graduated", "dev_pct", "honeypot")
     written = 0
     for token, values in rows.items():
         if not values:
@@ -346,13 +420,16 @@ def load_panel(
     """
     candles = pd.read_sql("SELECT address, ts, close, volume FROM ohlcv", conn)
     snaps = pd.read_sql(
-        "SELECT address, observed_at, price_usd, reserve_usd FROM snapshots ORDER BY observed_at",
+        "SELECT address, observed_at, price_usd, reserve_usd, buys_m5, sells_m5 FROM snapshots "
+        "ORDER BY observed_at",
         conn,
     )
     pools = pd.read_sql(
-        "SELECT address, base_token, created_at, first_seen_at, network, fee_pct FROM pools", conn
+        "SELECT address, name, base_token, dex, created_at, first_seen_at, network, fee_pct FROM pools", conn
     )
     tokens = pd.read_sql("SELECT * FROM token_snapshots", conn)
+    token_meta = pd.read_sql("SELECT token, name, symbol FROM token_meta", conn)
+    trending = pd.read_sql("SELECT network, observed_at, address, rank FROM trending", conn)
     if network is not None:
         pools = pools[pools["network"] == network]
         candles = candles[candles["address"].isin(pools["address"])]
@@ -391,6 +468,12 @@ def load_panel(
     ).dt.tz_localize(None).reindex(close.columns)
     fields = _point_in_time_token_fields(tokens, launch["base_token"], close)
     holders = fields.pop("holders", None)
+    flow = _point_in_time_buy_ratio(snaps, close)
+    if flow is not None:
+        fields["buy_ratio"] = flow.where(close.notna())
+    rank = _point_in_time_trending(trending, launch["network"], close)
+    if rank is not None:
+        fields["trending_rank"] = rank.where(close.notna())
     fees = (launch["fee_pct"] / 100.0).reindex(close.columns)
     return TokenPanel(
         close=close,
@@ -400,7 +483,74 @@ def load_panel(
         launch_time=launch_time,
         extra=fields,
         pool_fee=fees if fees.notna().any() else None,
+        meta=_pool_meta(launch, token_meta, close.columns),
     )
+
+
+def _pool_meta(pools: pd.DataFrame, token_meta: pd.DataFrame, columns: pd.Index) -> pd.DataFrame:
+    """Name, symbol, network and dex per pool column. Name and symbol are
+    immutable on chain, so they are known from launch even if fetched later."""
+    meta = pools[["name", "base_token", "network", "dex"]].rename(columns={"name": "pool_name"})
+    symbol_from_pool = meta["pool_name"].fillna("").str.split(" / ").str[0].str.strip()
+    names = token_meta.drop_duplicates("token").set_index("token")
+    meta = meta.assign(
+        name=meta["base_token"].map(names["name"]) if not names.empty else None,
+        symbol=meta["base_token"].map(names["symbol"]) if not names.empty else None,
+    )
+    meta["symbol"] = meta["symbol"].fillna(symbol_from_pool.replace("", np.nan))
+    meta["name"] = meta["name"].fillna(meta["symbol"])
+    out = meta.reindex(columns)[["name", "symbol", "network", "dex", "pool_name"]]
+    out.index.name = "token"
+    return out
+
+
+def _point_in_time_buy_ratio(snaps: pd.DataFrame, close: pd.DataFrame) -> pd.DataFrame | None:
+    """Share of buys in the last 5-minute transaction count, as last observed."""
+    flow = snaps.dropna(subset=["buys_m5", "sells_m5"])
+    flow = flow[(flow["buys_m5"] + flow["sells_m5"]) > 0]
+    if flow.empty:
+        return None
+    flow = flow.assign(
+        time=pd.to_datetime(flow["observed_at"], utc=True).dt.tz_localize(None).astype("datetime64[ns]"),
+        ratio=flow["buys_m5"] / (flow["buys_m5"] + flow["sells_m5"]),
+    )
+    out = pd.DataFrame(np.nan, index=close.index, columns=close.columns)
+    bars = pd.DataFrame({"time": close.index.astype("datetime64[ns]")})
+    for address, group in flow.groupby("address"):
+        if address not in out.columns:
+            continue
+        merged = pd.merge_asof(bars, group.sort_values("time")[["time", "ratio"]], on="time",
+                               direction="backward", tolerance=pd.Timedelta("30min"))
+        out[address] = merged["ratio"].to_numpy()
+    return out if out.notna().any().any() else None
+
+
+def _point_in_time_trending(
+    trending: pd.DataFrame, network: pd.Series, close: pd.DataFrame
+) -> pd.DataFrame | None:
+    """Trending rank (1 = top) from the last list observed on the pool's chain;
+    NaN when the pool was not on it or no list had been observed yet."""
+    if trending.empty:
+        return None
+    trending = trending.assign(
+        time=pd.to_datetime(trending["observed_at"], utc=True).dt.tz_localize(None).astype("datetime64[ns]")
+    )
+    out = pd.DataFrame(np.nan, index=close.index, columns=close.columns)
+    chain_of = network.reindex(close.columns)
+    for chain, lists in trending.groupby("network"):
+        pools = [c for c in close.columns if chain_of.get(c) == chain]
+        if not pools:
+            continue
+        times = np.sort(lists["time"].unique())
+        # The list in force at each bar: the last one observed at or before it.
+        pos = np.searchsorted(times, close.index.to_numpy(dtype="datetime64[ns]"), side="right") - 1
+        wide = lists.pivot_table(index="time", columns="address", values="rank", aggfunc="min")
+        wide = wide.reindex(index=times, columns=pools)
+        values = np.full((len(close.index), len(pools)), np.nan)
+        valid = pos >= 0
+        values[valid] = wide.to_numpy()[pos[valid]]
+        out[pools] = values
+    return out if out.notna().any().any() else None
 
 
 def _point_in_time_token_fields(
@@ -419,6 +569,11 @@ def _point_in_time_token_fields(
     tokens["mint_risk"] = tokens[["mint_authority", "freeze_authority"]].max(axis=1, skipna=True)
     names = {"holders": "holders", "top10_share": "top10_share",
              "graduation": "graduation", "mint_risk": "mint_risk"}
+    if "dev_pct" in tokens:
+        tokens["dev_share"] = tokens["dev_pct"] / 100.0
+        names["dev_share"] = "dev_share"
+    if "honeypot" in tokens:
+        names["honeypot"] = "honeypot"
     bars = pd.DataFrame({"time": close.index.astype("datetime64[ns]")})
     out = {name: pd.DataFrame(np.nan, index=close.index, columns=close.columns) for name in names}
     by_token = {token: group.sort_values("time") for token, group in tokens.groupby("token")}

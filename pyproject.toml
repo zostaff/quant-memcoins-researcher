@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quant-memcoins-researcher"
-version = "0.2.0"
+version = "0.3.0"
 description = "Hedge-fund quant research for memecoins on Solana and Robinhood Chain. Claude generates strategies; the system prices rugs, slippage and MEV, and kills the lucky ones."
 readme = "README.md"
 requires-python = ">=3.11"

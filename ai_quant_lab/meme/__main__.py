@@ -7,6 +7,7 @@ Networks (GeckoTerminal ids): solana, robinhood (Robinhood Chain).
     run       collector for launchd: collect + refresh the stalest candles, forever
     info      what is in the database
     demo      tear sheets on synthetic tapes, no API key or data needed
+    zoo       run the strategy library through every gate (database or synthetic)
     research  Claude research loop on a panel (database or synthetic)
 """
 
@@ -56,6 +57,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--days", type=int, default=21)
     p.add_argument("--seed", type=int, default=4)
 
+    p = sub.add_parser("zoo")
+    p.add_argument("--db", type=Path, default=None, help="Collected database; synthetic if absent.")
+    p.add_argument("--network", default="solana", help="Which network's pools (with --db).")
+    p.add_argument("--tape", choices=("edge", "null"), default="edge",
+                   help="Synthetic tape: narratives that pay (edge) or that are only visible (null).")
+    p.add_argument("--days", type=int, default=42, help="Synthetic tape length.")
+    p.add_argument("--seed", type=int, default=4)
+    p.add_argument("--capital", type=float, default=2_000.0)
+    p.add_argument("--strategies", default=None, help="Comma-separated subset; default all.")
+    p.add_argument("--out", type=Path, default=None, help="Write a markdown report here.")
+    p.add_argument("--list", action="store_true", help="List the library and exit.")
+
     p = sub.add_parser("research")
     p.add_argument("--db", type=Path, default=None, help="Collected database; synthetic if absent.")
     p.add_argument("--network", default="solana", help="Which network's pools to research.")
@@ -71,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         "run": _run,
         "info": _info,
         "demo": _demo,
+        "zoo": _zoo,
         "research": _research,
     }[args.command](args)
 
@@ -130,7 +144,7 @@ def _info(args: argparse.Namespace) -> int:
     from ai_quant_lab.meme.geckoterminal import connect, load_panel
 
     conn = connect(args.db)
-    for table in ("pools", "snapshots", "token_snapshots", "ohlcv"):
+    for table in ("pools", "snapshots", "token_snapshots", "token_meta", "trending", "ohlcv"):
         print(f"{table:10s} {conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]}")
     for network, dex, n in conn.execute(
         "SELECT network, dex, COUNT(*) FROM pools GROUP BY network, dex ORDER BY 1, 3 DESC"
@@ -146,6 +160,43 @@ def _info(args: argparse.Namespace) -> int:
     print(panel.survivorship_report())
     fields = ["holders"] if panel.holders is not None else []
     print("token fields:", ", ".join(fields + list(panel.extra)) or "none yet")
+    from ai_quant_lab.meme.narratives import narrative_summary
+
+    print("narratives (from names and symbols):")
+    print(narrative_summary(panel).to_string(formatters={"volume_share": "{:.1%}".format}))
+    return 0
+
+
+def _zoo(args: argparse.Namespace) -> int:
+    from ai_quant_lab.meme.strategies import STRATEGIES
+    from ai_quant_lab.meme.zoo import run_zoo
+
+    if args.list:
+        for s in STRATEGIES.values():
+            needs = f"  needs: {', '.join(s.requires)}" if s.requires else ""
+            print(f"{s.name:20} {s.family:10} {len(s.variants()):2} variants  {s.thesis}{needs}")
+        return 0
+    if args.db is not None:
+        from ai_quant_lab.meme.geckoterminal import connect, load_panel
+
+        panel = load_panel(connect(args.db), network=args.network)
+        costs = costs_for_network(args.network)
+        source = f"{args.network} pools from {args.db}"
+    else:
+        strength = 1.0 if args.tape == "edge" else 0.0
+        panel = simulate_universe(UniverseSpec(n_days=args.days, seed=args.seed, edge=0.5 * strength,
+                                               narrative_attention=1.0, narrative_strength=strength))
+        costs = costs_for_network("solana")
+        source = f"synthetic {args.tape} tape, {args.days} days, seed {args.seed}"
+    names = [n.strip() for n in args.strategies.split(",")] if args.strategies else None
+    print(f"[zoo] {source}: {panel.close.shape[1]} tokens, {panel.close.shape[0]} bars")
+    result = run_zoo(panel, strategies=names, config=MemeBacktestConfig(capital_usd=args.capital, costs=costs),
+                     source=source, progress=True)
+    print()
+    print(result.summary())
+    if args.out is not None:
+        args.out.write_text(result.to_markdown(f"Strategy zoo: {source}"))
+        print(f"\nreport written to {args.out}")
     return 0
 
 
@@ -169,6 +220,9 @@ def _research(args: argparse.Namespace) -> int:
     else:
         panel = simulate_universe(UniverseSpec(n_days=30, edge=1.0))
         source = "synthetic 30-day memecoin universe"
+    from ai_quant_lab.meme.enrich import research_panel
+
+    panel = research_panel(panel)
     fields = ", ".join(panel.as_strategy_input())
     config = LoopConfig(
         market_description=(

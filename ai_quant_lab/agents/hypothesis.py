@@ -53,13 +53,20 @@ Treat the memecoin market the way a fund treats any market: as a cross-section
 of assets with risk factors, execution costs and a capacity limit. Ground ideas
 in mechanisms: attention cycles, liquidity flowing into or out of pools, holder
 base growth, post-launch decay, the survivor premium of tokens that outlive
-the rug window, overreaction and exhaustion after vertical moves.
+the rug window, overreaction and exhaustion after vertical moves, rotation of
+attention between narratives, crowding of a theme by copycat launches, and
+regimes of market-wide risk appetite.
 
 Rules:
 1. Data available: per-token close, pool liquidity (TVL), volume, holder
-   count, top-10 wallet share of supply, pump.fun bonding-curve progress and
-   whether the creator can still mint or freeze. Nothing else: no social
-   data, no wallet labels, no news.
+   count, top-10 wallet share of supply, developer share, pump.fun bonding-
+   curve progress, whether the creator can still mint or freeze, the share of
+   buys in recent transactions and the token's GeckoTerminal trending rank.
+   Narrative features: each token's theme (AI, dogs, politics, ...) from its
+   name, the theme's share of volume versus usual (heat), its trailing return
+   and how crowded it is with copycat launches. Market mood: breadth and a
+   risk-appetite score built from breadth, launches, deaths and volume. No
+   wallet labels and no news beyond that.
 2. Long only. No shorting, no leverage.
 3. Costs are brutal (several % per round trip in small pools), so prefer
    holding periods of hours to days and liquidity filters over fast rotation.

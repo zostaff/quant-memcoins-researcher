@@ -35,6 +35,9 @@ class TokenPanel:
     extra: Mapping[str, pd.DataFrame] = field(default_factory=dict)
     # Per-token pool fee as a fraction (Uniswap fee tiers differ by pool); None = config default.
     pool_fee: pd.Series | None = None
+    # Static per-token facts known at launch: name, symbol, network, dex. Index = tokens.
+    # Nothing here may depend on what happened after launch.
+    meta: pd.DataFrame | None = None
 
     def __post_init__(self) -> None:
         frames = {"liquidity": self.liquidity, "volume": self.volume, **self.extra}
@@ -93,6 +96,20 @@ class TokenPanel:
             launch_time=self.launch_time,
             extra={name: frame.loc[sl] for name, frame in self.extra.items()},
             pool_fee=self.pool_fee,
+            meta=self.meta,
+        )
+
+    def with_extra(self, **fields: pd.DataFrame) -> TokenPanel:
+        """A copy with more time × token fields (e.g. narrative or sentiment features)."""
+        return TokenPanel(
+            close=self.close,
+            liquidity=self.liquidity,
+            volume=self.volume,
+            holders=self.holders,
+            launch_time=self.launch_time,
+            extra={**self.extra, **fields},
+            pool_fee=self.pool_fee,
+            meta=self.meta,
         )
 
     def death_bars(self) -> pd.Series:

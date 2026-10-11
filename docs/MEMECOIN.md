@@ -104,6 +104,18 @@ expected return per bar is zero minus the bleed. `edge=1` makes token quality
 pay and regimes persistent. Use the null tape to check that your process
 rejects what it should.
 
+Every synthetic token also gets a narrative and a name to match ("Grok Mo",
+"Shiba Vu"), and each narrative has its own slow heat cycle.
+`narrative_attention` makes that heat visible in launches and volume;
+`narrative_strength` makes it pay. Attention without strength is the null
+tape for narrative strategies. These switches use their own random stream,
+so they never change the prices of the base tape.
+
+## Strategies, narratives, mood
+
+See [STRATEGIES.md](STRATEGIES.md): the strategy library, narrative and
+market-mood features, external sentiment, and the zoo that judges them.
+
 ## Data caveats
 
 - GeckoTerminal has no reserve history. Liquidity between snapshots is moved
@@ -118,6 +130,17 @@ rejects what it should.
   is NaN before. GeckoTerminal fills holder counts lazily: fresh tokens often
   show none for a while. Info is one call per token, so each pass refreshes
   only the `--holder-calls` stalest tokens.
+- `tokens/multi` and `info` also give each token's name and symbol, stored in
+  `token_meta` and used for narrative labels (they are fixed at launch).
+  GeckoTerminal categories and socials are stored with the time they were
+  first seen and are not used for labels: they are curated after the fact.
+- `info` adds the developer's share of supply (`dev_share`) and a honeypot
+  flag; the strategy universe drops flagged honeypots.
+- `buy_ratio` is the share of buys in the 5-minute transaction count of the
+  last snapshot, held for at most 30 minutes.
+- Each pass records the chain's trending list (one call). `trending_rank` is
+  the rank in the last list observed at each bar, only for pools already in
+  the universe: adding pools because they trend would select on outcome.
 - `features.rug_screen(mint_risk, top10_share)` fails tokens whose creator can
   still mint or freeze, or whose top-10 wallets hold more than half of supply;
   unobserved counts as a fail unless `unknown_ok=True`.

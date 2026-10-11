@@ -218,9 +218,9 @@ def test_token_fields_are_point_in_time():
     t0 = int(pd.Timestamp("2026-01-01").timestamp())
     for i in range(12):
         conn.execute("INSERT INTO ohlcv VALUES ('A', ?, 1, 1, 1, 1, 100)", (t0 + 300 * i,))
-    conn.execute("INSERT INTO token_snapshots VALUES ('tokA', '2026-01-01T00:15:00+00:00', "
+    conn.execute("INSERT INTO token_snapshots (token, observed_at, holders, top10_pct, mint_authority, freeze_authority, gt_score, graduation_pct, graduated) VALUES ('tokA', '2026-01-01T00:15:00+00:00', "
                  "120, 45.0, 0, 0, 30.0, 82.0, 0)")
-    conn.execute("INSERT INTO token_snapshots VALUES ('tokA', '2026-01-01T00:40:00+00:00', "
+    conn.execute("INSERT INTO token_snapshots (token, observed_at, holders, top10_pct, mint_authority, freeze_authority, gt_score, graduation_pct, graduated) VALUES ('tokA', '2026-01-01T00:40:00+00:00', "
                  "300, NULL, NULL, NULL, NULL, 100.0, 1)")
     panel = load_panel(conn)
     holders = panel.holders["A"]

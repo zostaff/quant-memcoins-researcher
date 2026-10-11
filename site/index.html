@@ -213,6 +213,46 @@ footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-s
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 footer a{color:var(--soft)}
 
+/* zoo */
+.zoo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.zoo-stats div{padding:20px}
+.zoo-stats b{display:block;font-family:var(--display);font-size:34px;letter-spacing:-.02em}
+.zoo-stats span{color:var(--muted);font-size:14px}
+.board{overflow-x:auto}
+.board table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:14px;min-width:760px}
+.board th{color:var(--muted);font-weight:500;text-align:right;padding:14px 16px;border-bottom:1px solid var(--line2);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.board td{text-align:right;padding:13px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+.board th:first-child,.board td:first-child,.board th:last-child,.board td:last-child{text-align:left}
+.board tr.win td{background:rgba(200,255,61,.06)}
+.board tr.win td:first-child{color:var(--lime)}
+.vd{display:inline-block;border-radius:6px;padding:2px 9px;font-weight:600;font-size:12px;letter-spacing:.03em}
+.vd.pass{background:var(--lime-dim);color:var(--lime);border:1px solid rgba(200,255,61,.45)}
+.vd.dup{background:rgba(255,194,61,.1);color:var(--amber);border:1px solid rgba(255,194,61,.4)}
+.vd.bad{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,77,109,.4)}
+.board .vwhy{color:var(--muted);font-size:12px;margin-left:8px}
+.zoo-note{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+.zoo-note div{padding:22px}
+.zoo-note h3{margin:0 0 8px;font-size:16px}
+.zoo-note p{margin:0;color:var(--soft);font-size:15px}
+
+/* narratives */
+.narr{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+.sig{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sig div{padding:20px}
+.sig h3{font-family:var(--display);font-size:16px;margin:0 0 6px}
+.sig p{margin:0;color:var(--soft);font-size:14px}
+.cls{padding:26px}
+.cls h3{font-family:var(--display);font-size:20px;margin:0 0 8px}
+.cls>p{color:var(--soft);font-size:14px;margin:0 0 18px}
+.cls input{width:100%;background:var(--bg);border:1px solid var(--line2);border-radius:12px;padding:14px 16px;color:var(--text);font:16px var(--mono);outline:none}
+.cls input:focus{border-color:rgba(200,255,61,.6)}
+.cls .res{margin-top:18px;display:flex;align-items:center;gap:12px;min-height:44px}
+.cls .tag{font-family:var(--display);font-weight:900;font-size:24px;color:var(--lime);text-transform:uppercase;letter-spacing:-.01em}
+.cls .hit{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.cls .tries{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.cls .warn{margin-top:20px;padding:14px 16px;border-radius:12px;background:var(--bg);border:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media (max-width:980px){.zoo-stats{grid-template-columns:1fr 1fr}.narr,.zoo-note{grid-template-columns:1fr}}
+@media (max-width:620px){.sig{grid-template-columns:1fr}.zoo-stats b{font-size:28px}}
 .rv{opacity:0;transform:translateY(16px);transition:opacity .7s,transform .7s}
 .rv.on{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.rv,.step{opacity:1;transform:none}.stamp{opacity:1;transform:none}}
@@ -249,7 +289,7 @@ footer a{color:var(--soft)}
   <div class="wrap">
     <a class="brand" href="#top"><i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#050706" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/></svg></i><span>quant-memcoins-<b>researcher</b></span></a>
     <div class="links">
-      <a href="#demo">Demo</a><a href="#features">Features</a><a href="#pipeline">Pipeline</a><a href="#labs">Try it</a><a href="#chains">Chains</a><a href="#start">Quick start</a>
+      <a href="#demo">Demo</a><a href="#zoo">Zoo</a><a href="#narratives">Narratives</a><a href="#features">Features</a><a href="#pipeline">Pipeline</a><a href="#labs">Try it</a><a href="#chains">Chains</a><a href="#start">Quick start</a>
     </div>
     <a class="btn sm" href="https://github.com/zostaff/quant-memcoins-researcher"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>GitHub</a>
   </div>
@@ -281,8 +321,8 @@ footer a{color:var(--soft)}
 </header>
 
 <div class="tape" aria-hidden="true"><div>
-  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>139</b> tests passing</span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
-  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>139</b> tests passing</span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
+  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>176</b> tests passing</span><span><b>12</b> strategies · <b>54</b> variants</span><span>narrative <b>rotation</b></span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
+  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>176</b> tests passing</span><span><b>12</b> strategies · <b>54</b> variants</span><span>narrative <b>rotation</b></span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
 </div></div>
 
 <section id="demo">
@@ -310,10 +350,76 @@ footer a{color:var(--soft)}
   </div>
 </section>
 
+<section id="zoo" style="background:var(--bg2);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">02 · Strategy zoo</div>
+      <h2>12 strategies. 54 variants. <em>One honest trial count.</em></h2>
+      <p>The library covers what a memecoin desk tries first: holder and liquidity momentum, volume breakouts, bonding-curve graduation, trending-list entries, dip buying, order-flow imbalance, three narrative strategies and regime-gated momentum. The zoo backtests every variant, counts all of them as trials, and judges the best of each.</p>
+    </div>
+    <div class="zoo-stats">
+      <div class="card rv"><b class="l">54</b><span>variants, every one a trial</span></div>
+      <div class="card rv"><b class="g">1 / 10</b><span>pass on a tape with a planted narrative edge</span></div>
+      <div class="card rv"><b class="r">0 / 10</b><span>pass when narratives are visible but worthless</span></div>
+      <div class="card rv"><b>~$2k</b><span>capacity of the survivor before returns halve</span></div>
+    </div>
+    <div class="card board rv">
+      <table>
+        <thead><tr><th>Strategy</th><th>Return</th><th>Sharpe</th><th>Halves</th><th>α t</th><th>DSR p</th><th>Verdict</th></tr></thead>
+        <tbody>
+<tr class="win"><td>narrative_rotation</td><td class="g">+2680%</td><td class="g">+17.6</td><td>+21.6 / +13.6</td><td>+6.67</td><td class="g">0.000</td><td><span class="vd pass">PASS</span></td></tr>
+<tr><td>narrative_early</td><td class="g">+2222%</td><td class="g">+15.4</td><td>+19.3 / +10.5</td><td>+5.88</td><td class="g">0.002</td><td><span class="vd dup">DUPLICATE</span><span class=vwhy>0.89 corr</span></td></tr>
+<tr><td>narrative_momentum</td><td class="g">+810%</td><td class="g">+9.4</td><td>+13.7 / +2.8</td><td>+3.45</td><td class="r">0.187</td><td><span class="vd bad">LUCK</span></td></tr>
+<tr><td>holder_momentum</td><td class="g">+182%</td><td class="g">+4.3</td><td>+2.3 / +6.2</td><td>+3.70</td><td class="r">0.806</td><td><span class="vd bad">LUCK</span></td></tr>
+<tr><td>volume_breakout</td><td class="g">+74%</td><td class="g">+3.4</td><td>−0.1 / +6.9</td><td>+0.73</td><td class="r">0.877</td><td><span class="vd bad">UNSTABLE</span></td></tr>
+<tr><td>regime_momentum</td><td class="g">+37%</td><td class="g">+2.4</td><td>−0.8 / +5.5</td><td>+0.88</td><td class="r">0.933</td><td><span class="vd bad">UNSTABLE</span></td></tr>
+<tr><td>buy_pressure</td><td class="g">+7%</td><td class="g">+1.6</td><td>+4.4 / −1.4</td><td>+0.72</td><td class="r">0.961</td><td><span class="vd bad">UNSTABLE</span></td></tr>
+<tr><td>flow_momentum</td><td class="r">−17%</td><td class="g">+2.1</td><td>−0.4 / +4.5</td><td>+0.51</td><td class="r">0.945</td><td><span class="vd bad">LOSS</span></td></tr>
+<tr><td>quality_composite</td><td class="r">−70%</td><td class="r">−1.3</td><td>−1.4 / −1.1</td><td>−1.30</td><td class="r">0.997</td><td><span class="vd bad">LOSS</span></td></tr>
+<tr><td>dip_reversal</td><td class="r">−98%</td><td class="r">−7.6</td><td>−10.5 / −2.5</td><td>−3.29</td><td class="r">1.000</td><td><span class="vd bad">LOSS</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="zoo-note">
+      <div class="card rv"><h3>+810% and rejected</h3><p><code class="mono l">narrative_momentum</code> made eight times its money. Out of 54 tries, a result this good shows up by chance often enough: deflated Sharpe p 0.19.</p></div>
+      <div class="card rv"><h3>Same edge, half the history: nothing passes</h3><p>On 21 days instead of 42, the planted edge cannot be told apart from the best of 54 tries. How much data you have is a research decision.</p></div>
+    </div>
+    <div class="cmd" style="max-width:none"><code id="c-zoo">python -m ai_quant_lab.meme zoo --db data/meme.db --network robinhood --out report.md</code><button class="copy" data-copy="c-zoo">copy</button></div>
+  </div>
+</section>
+
+<section id="narratives">
+  <div class="wrap">
+    <div class="sh rv">
+      <div class="kick">03 · Narratives and mood</div>
+      <h2>Memecoins trade in stories. <em>Measure the rotation.</em></h2>
+      <p>AI agents one week, dogs the next, politics around an election. Each token gets a theme from its name and symbol, and every theme gets heat, return and crowding, point-in-time. A market-wide risk-appetite score tells momentum when to step aside.</p>
+    </div>
+    <div class="narr">
+      <div class="sig">
+        <div class="card rv"><h3>Narrative heat</h3><p>The theme's share of volume now versus its usual share. Above zero, attention is rotating in.</p></div>
+        <div class="card rv"><h3>Launch saturation</h3><p>Copycat launches versus the usual pace. Above two, the theme is crowded and late tickers are exit liquidity.</p></div>
+        <div class="card rv"><h3>Narrative return</h3><p>Liquidity-weighted return of the theme, with rugs counted at −100%.</p></div>
+        <div class="card rv"><h3>Risk appetite</h3><p>Breadth, launch rate, death rate, volume impulse, buy pressure and curve progress, z-scored on trailing history.</p></div>
+        <div class="card rv"><h3>External sentiment</h3><p>Plug in X mentions, LunarCrush, Kaito or your own model. Every score waits for its publication lag.</p></div>
+        <div class="card rv"><h3>No look-ahead labels</h3><p>Names are fixed on chain at launch. Vendor categories are assigned later, often after the pump, so they never label history.</p></div>
+      </div>
+      <div class="card cls rv">
+        <h3>Try the classifier</h3>
+        <p>The same keyword taxonomy the engine uses. Type a token name or ticker.</p>
+        <input id="nm" type="text" value="dogwifhat" aria-label="Token name or symbol" autocomplete="off" spellcheck="false">
+        <div class="res" aria-live="polite"><span class="tag" id="nm-tag"></span><span class="hit" id="nm-hit"></span></div>
+        <div class="tries" id="tries"></div>
+        <div class="warn">Live data from the collector: The Wizard Cat → cat, ElonDusk → celebrity, PEPE ESCOBAR KILOS → frog.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="features" style="background:var(--bg2);border-block:1px solid var(--line)">
   <div class="wrap">
     <div class="sh rv">
-      <div class="kick">02 · What it does</div>
+      <div class="kick">04 · What it does</div>
       <h2>Every tool a fund uses to <em>stop fooling itself.</em></h2>
       <p>Rebuilt for a market where most tokens are dead within a day.</p>
     </div>
@@ -332,7 +438,7 @@ footer a{color:var(--soft)}
 <section id="pipeline">
   <div class="wrap">
     <div class="sh rv">
-      <div class="kick">03 · Pipeline</div>
+      <div class="kick">05 · Pipeline</div>
       <h2>How a strategy <em>gets killed.</em></h2>
       <p>Generation is cheap; validation is expensive. Claude is fast at ideas, so the system spends its effort on the part people skip.</p>
     </div>
@@ -351,7 +457,7 @@ footer a{color:var(--soft)}
 <section id="labs" style="background:var(--bg2);border-block:1px solid var(--line)">
   <div class="wrap">
     <div class="sh rv">
-      <div class="kick">04 · Try it</div>
+      <div class="kick">06 · Try it</div>
       <h2>The math, <em>live in your browser.</em></h2>
       <p>Both calculators use the same formulas as the engine.</p>
     </div>
@@ -405,7 +511,7 @@ footer a{color:var(--soft)}
 <section id="chains">
   <div class="wrap">
     <div class="sh rv">
-      <div class="kick">05 · Chains</div>
+      <div class="kick">07 · Chains</div>
       <h2>Two chains, <em>one database.</em></h2>
       <p>Data comes from the free GeckoTerminal API. The collector registers every new pool on both chains and keeps snapshotting them.</p>
     </div>
@@ -440,7 +546,7 @@ footer a{color:var(--soft)}
 <section id="start" style="background:var(--bg2);border-block:1px solid var(--line)">
   <div class="wrap">
     <div class="sh rv">
-      <div class="kick">06 · Quick start</div>
+      <div class="kick">08 · Quick start</div>
       <h2>Running in <em>a minute.</em></h2>
       <p>The demo needs no API key and no data. Research needs an Anthropic key and a few days of collected history.</p>
     </div>
@@ -469,7 +575,7 @@ python -m ai_quant_lab.meme research --db data/meme.db \
 <section>
   <div class="wrap">
     <div class="sh rv">
-      <div class="kick">07 · Limits</div>
+      <div class="kick">09 · Limits</div>
       <h2>What it <em>does not</em> do.</h2>
     </div>
     <div class="limits">
@@ -599,6 +705,34 @@ python -m ai_quant_lab.meme research --db data/meme.db \
   }));
   const dio = new IntersectionObserver(es => { if (es[0].isIntersecting) { play("edge"); dio.disconnect(); } }, { threshold: .25 });
   dio.observe($("#term"));
+
+  // narrative classifier: same taxonomy as ai_quant_lab/meme/narratives.py
+  const NARR = {"ai": ["ai", "agent", "agents", "gpt", "llm", "neural", "bot", "robot", "cyber", "sentient", "agi", "claude", "grok", "openai", "deepseek", "model"], "politics": ["trump", "maga", "biden", "kamala", "election", "president", "melania", "vance", "usa", "america", "senate"], "stocks": ["tsla", "nvda", "aapl", "hood", "stock", "stocks", "nasdaq", "spy", "gme", "amc", "robinhood", "tesla", "nvidia", "apple"], "dog": ["dog", "doge", "inu", "shib", "shiba", "wif", "pup", "puppy", "bonk", "woof", "corgi", "floki", "doggo"], "cat": ["cat", "cats", "kitty", "kitten", "meow", "popcat", "mew", "nyan", "purr", "neko"], "frog": ["pepe", "frog", "kek", "toad", "ribbit"], "celebrity": ["elon", "musk", "kanye", "drake", "taylor", "mrbeast", "celeb", "tate"], "animals": ["monkey", "ape", "penguin", "pengu", "bear", "bull", "hippo", "goat", "fish", "duck", "hamster", "moodeng", "panda", "rabbit", "bunny", "fox", "wolf", "horse"], "anime": ["anime", "waifu", "chan", "kun", "senpai", "sama", "otaku", "manga"], "food": ["pizza", "burger", "taco", "sushi", "banana", "coffee", "cheese", "bread", "milk", "donut", "cookie"], "gaming": ["game", "gaming", "play", "quest", "pixel", "arcade", "nft", "minecraft"], "space": ["moon", "rocket", "mars", "space", "nasa", "galaxy", "star", "alien", "ufo"], "culture": ["wojak", "chad", "based", "giga", "sigma", "npc", "meme", "doomer", "degen", "chill", "brainrot", "skibidi"]};
+  function classify(text) {
+    const words = new Set((text.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().match(/[a-z0-9]+/g)) || []);
+    const glued = (text.toLowerCase().match(/[a-z0-9]+/g) || []).filter(w => w.length > 3);
+    let best = "other", bestHits = 0, bestKw = "";
+    for (const [n, kws] of Object.entries(NARR)) {
+      let hits = 0, kwHit = "";
+      for (const kw of kws) {
+        let h = 0;
+        if (words.has(kw)) h = 2 * kw.length;
+        else if (kw.length >= 4 && glued.some(g => g.includes(kw))) h = kw.length;
+        else if (glued.some(g => g.startsWith(kw) || g.endsWith(kw))) h = kw.length;
+        if (h) { hits += h; if (!kwHit) kwHit = kw; }
+      }
+      if (hits > bestHits) { best = n; bestHits = hits; bestKw = kwHit; }
+    }
+    return [best, bestKw];
+  }
+  const nm = $("#nm");
+  const showN = () => { const [n, kw] = classify(nm.value); $("#nm-tag").textContent = n; $("#nm-hit").textContent = kw ? `matched “${kw}”` : "no keyword matched"; };
+  nm.addEventListener("input", showN);
+  ["Grok Agent", "MAGA", "AIDOGE", "Moodeng", "Brainrot", "TSLA moon", "Torch"].forEach(t => {
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = t;
+    b.addEventListener("click", () => { nm.value = t; showN(); }); $("#tries").append(b);
+  });
+  showN();
 
   // cost lab: same formulas as ai_quant_lab/meme/amm.py
   const PRESET = { solana: { fee: .01, fix: .10, mev: .002 }, robinhood: { fee: .01, fix: .02, mev: .001 } };
