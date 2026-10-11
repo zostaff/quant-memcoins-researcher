@@ -3,15 +3,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/zostaff/quant-memcoins-researcher/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zostaff/quant-memcoins-researcher/ci.yml?branch=main&style=for-the-badge&label=CI&labelColor=050706&color=C8FF3D" alt="CI"></a>
-  <img src="https://img.shields.io/badge/tests-139_passing-C8FF3D?style=for-the-badge&labelColor=050706" alt="139 tests">
-  <img src="https://img.shields.io/badge/python-3.11+-C8FF3D?style=for-the-badge&labelColor=050706" alt="Python 3.11+">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-C8FF3D?style=for-the-badge&labelColor=050706" alt="MIT"></a>
+  <a href="https://github.com/zostaff/quant-memcoins-researcher/actions/workflows/ci.yml"><img src="https://github.com/zostaff/quant-memcoins-researcher/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="figures/badges/tests.svg" alt="139 tests">
+  <img src="figures/badges/python.svg" alt="Python 3.11+">
+  <a href="LICENSE"><img src="figures/badges/license.svg" alt="MIT"></a>
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/Solana-pump.fun_·_PumpSwap_·_Meteora-0b0f0c?style=flat-square&labelColor=C8FF3D" alt="Solana">
-  <img src="https://img.shields.io/badge/Robinhood_Chain-Uniswap_v4_·_Pons_·_Bankr-0b0f0c?style=flat-square&labelColor=C8FF3D" alt="Robinhood Chain">
-  <img src="https://img.shields.io/badge/Claude-Opus_5.5-0b0f0c?style=flat-square&labelColor=C8FF3D" alt="Claude Opus 5.5">
+  <img src="figures/badges/solana.svg" alt="Solana">
+  <img src="figures/badges/robinhood.svg" alt="Robinhood Chain">
+  <img src="figures/badges/claude.svg" alt="Claude Opus 5.5">
 </p>
 
 <p align="center">
@@ -77,7 +77,7 @@ Everything ends in one **tear sheet**: costs broken down, factor betas, capacity
 
 ## ⛓️ Chains
 
-| | <img src="https://img.shields.io/badge/-Solana-0b0f0c?style=flat-square&labelColor=C8FF3D" alt=""> | <img src="https://img.shields.io/badge/-Robinhood_Chain-0b0f0c?style=flat-square&labelColor=C8FF3D" alt=""> |
+| | <img src="figures/badges/solana-chip.svg" alt=""> | <img src="figures/badges/robinhood-chip.svg" alt=""> |
 |---|---|---|
 | **Venues** | pump.fun, PumpSwap, Meteora | Uniswap v4 / v3, Pons, Bankr |
 | **Pool fee** | 1% default | read from each pool's fee tier: 1%, 0.3%, 0.01% |
