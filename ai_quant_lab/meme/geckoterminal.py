@@ -6,10 +6,16 @@ the database whether it moons, bleeds out or gets rugged. Run the collector
 continuously (cron / launchd, every minute or two) and the universe you
 research on is the universe you could actually have traded.
 
-Three tables:
-    pools      one row per pool, first time we saw it
-    snapshots  price, pool reserve, FDV and 5-minute flow at observation time
-    ohlcv      5-minute candles backfilled per pool
+Four tables:
+    pools            one row per pool, first time we saw it
+    snapshots        price, pool reserve, FDV and 5-minute flow at observation time
+    token_snapshots  holders, top-10 share, mint/freeze authority, bonding-curve
+                     progress of the base token at observation time
+    ohlcv            5-minute candles backfilled per pool
+
+Holders come from the per-token `info` endpoint (one call per token), so each
+pass refreshes only a budget of the stalest tokens. Bonding-curve progress
+comes from `tokens/multi`, 30 tokens per call, every pass.
 
 The API has no reserve history, only the current value, so `load_panel`
 rebuilds liquidity point-in-time: the last snapshot at or before each bar,
@@ -27,11 +33,11 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -61,6 +67,18 @@ CREATE TABLE IF NOT EXISTS snapshots (
     buys_m5 INTEGER,
     sells_m5 INTEGER,
     PRIMARY KEY (address, observed_at)
+);
+CREATE TABLE IF NOT EXISTS token_snapshots (
+    token TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    holders INTEGER,
+    top10_pct REAL,
+    mint_authority INTEGER,
+    freeze_authority INTEGER,
+    gt_score REAL,
+    graduation_pct REAL,
+    graduated INTEGER,
+    PRIMARY KEY (token, observed_at)
 );
 CREATE TABLE IF NOT EXISTS ohlcv (
     address TEXT NOT NULL,
@@ -114,6 +132,7 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
 class CollectStats:
     new_pools: int
     snapshots: int
+    token_snapshots: int = 0
 
 
 def collect_once(
@@ -122,8 +141,10 @@ def collect_once(
     *,
     pages: int = 3,
     track_hours: float = 72.0,
+    holder_calls: int = 10,
 ) -> CollectStats:
-    """One collection pass: register new pools, snapshot every tracked pool.
+    """One collection pass: register new pools, snapshot every tracked pool,
+    then snapshot their base tokens (`holder_calls` info calls per pass).
 
     Pools older than `track_hours` stop being snapshotted (their candles can
     still be backfilled).
@@ -165,9 +186,69 @@ def collect_once(
             )
             snapshots += 1
 
+    token_rows = _snapshot_tokens(conn, client, cutoff, now, holder_calls)
     conn.commit()
     after = conn.execute("SELECT COUNT(*) FROM pools").fetchone()[0]
-    return CollectStats(new_pools=after - before, snapshots=snapshots)
+    return CollectStats(new_pools=after - before, snapshots=snapshots, token_snapshots=token_rows)
+
+
+def _snapshot_tokens(
+    conn: sqlite3.Connection, client: GeckoClient, cutoff: str, now: str, holder_calls: int
+) -> int:
+    tokens = [
+        row[0]
+        for row in conn.execute(
+            "SELECT DISTINCT base_token FROM pools "
+            "WHERE base_token IS NOT NULL AND COALESCE(created_at, first_seen_at) >= ?",
+            (cutoff,),
+        )
+    ]
+    rows: dict[str, dict[str, Any]] = {t: {} for t in tokens}
+
+    for batch in _chunks(tokens, 30):
+        payload = client.get(f"/networks/{NETWORK}/tokens/multi/{','.join(batch)}")
+        for token in payload.get("data", []):
+            attrs = token.get("attributes") or {}
+            pad = attrs.get("launchpad_details") or {}
+            if attrs.get("address") in rows and pad:
+                rows[attrs["address"]].update(
+                    graduation_pct=_num(pad.get("graduation_percentage")),
+                    graduated=int(bool(pad.get("completed"))),
+                )
+
+    # Stalest first: never-observed tokens, then the oldest holder reading.
+    last_seen = dict(
+        conn.execute(
+            "SELECT token, MAX(observed_at) FROM token_snapshots "
+            "WHERE holders IS NOT NULL OR mint_authority IS NOT NULL GROUP BY token"
+        ).fetchall()
+    )
+    for token in sorted(tokens, key=lambda t: last_seen.get(t) or "")[: max(holder_calls, 0)]:
+        data = client.get(f"/networks/{NETWORK}/tokens/{token}/info").get("data")
+        attrs = (data.get("attributes") or {}) if isinstance(data, dict) else {}
+        holders = attrs.get("holders") or {}
+        top10 = (holders.get("distribution_percentage") or {}).get("top_10")
+        rows[token].update(
+            holders=holders.get("count"),
+            top10_pct=_num(top10),
+            mint_authority=_flag(attrs.get("mint_authority")),
+            freeze_authority=_flag(attrs.get("freeze_authority")),
+            gt_score=_num(attrs.get("gt_score")),
+        )
+
+    columns = ("holders", "top10_pct", "mint_authority", "freeze_authority",
+               "gt_score", "graduation_pct", "graduated")
+    written = 0
+    for token, values in rows.items():
+        if not values:
+            continue
+        cursor = conn.execute(
+            f"INSERT OR IGNORE INTO token_snapshots (token, observed_at, {', '.join(columns)}) "
+            f"VALUES (?, ?, {', '.join('?' * len(columns))})",
+            (token, now, *(values.get(c) for c in columns)),
+        )
+        written += cursor.rowcount
+    return written
 
 
 def backfill_ohlcv(
@@ -196,6 +277,27 @@ def backfill_ohlcv(
     return inserted
 
 
+def stale_pools(
+    conn: sqlite3.Connection, *, limit: int, track_hours: float = 84.0, stale_hours: float = 6.0
+) -> list[str]:
+    """Pools worth a candle refresh: launched within `track_hours`, newest stored
+    candle older than `stale_hours` (or none). Never-backfilled first, then stalest.
+
+    One call returns the last 1000 five-minute candles (~3.5 days), so a pool
+    refreshed every few hours inside that window keeps its full history.
+    """
+    now = pd.Timestamp.now(tz="UTC")
+    cutoff = (now - pd.Timedelta(hours=track_hours)).isoformat()
+    fresh_after = int((now - pd.Timedelta(hours=stale_hours)).timestamp())
+    rows = conn.execute(
+        "SELECT p.address, MAX(o.ts) AS last_ts FROM pools p LEFT JOIN ohlcv o ON o.address = p.address "
+        "WHERE COALESCE(p.created_at, p.first_seen_at) >= ? GROUP BY p.address "
+        "HAVING last_ts IS NULL OR last_ts < ? ORDER BY last_ts IS NOT NULL, last_ts LIMIT ?",
+        (cutoff, fresh_after, limit),
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
 def load_panel(
     conn: sqlite3.Connection,
     *,
@@ -211,13 +313,17 @@ def load_panel(
     if it trades again later: a backtest cannot know a corpse will twitch.
     Liquidity: last snapshot at or before the bar, scaled by sqrt(price move).
     Before the first snapshot liquidity is unknown and the token untradeable.
+    Token fields (holders, top-10 share, bonding-curve progress, mint risk)
+    hold their last observed value from the observation time on; before the
+    first observation they are NaN.
     """
     candles = pd.read_sql("SELECT address, ts, close, volume FROM ohlcv", conn)
     snaps = pd.read_sql(
         "SELECT address, observed_at, price_usd, reserve_usd FROM snapshots ORDER BY observed_at",
         conn,
     )
-    pools = pd.read_sql("SELECT address, created_at, first_seen_at FROM pools", conn)
+    pools = pd.read_sql("SELECT address, base_token, created_at, first_seen_at FROM pools", conn)
+    tokens = pd.read_sql("SELECT * FROM token_snapshots", conn)
     if candles.empty:
         raise ValueError("No candles in the database. Run backfill_ohlcv first.")
 
@@ -250,13 +356,48 @@ def load_panel(
     launch_time = pd.to_datetime(
         launch["created_at"].fillna(launch["first_seen_at"]), utc=True
     ).dt.tz_localize(None).reindex(close.columns)
+    fields = _point_in_time_token_fields(tokens, launch["base_token"], close)
+    holders = fields.pop("holders", None)
     return TokenPanel(
         close=close,
         liquidity=liquidity.reindex_like(close).fillna(0.0),
         volume=volume.reindex_like(close),
-        holders=None,
+        holders=holders,
         launch_time=launch_time,
+        extra=fields,
     )
+
+
+def _point_in_time_token_fields(
+    tokens: pd.DataFrame, base_token: pd.Series, close: pd.DataFrame
+) -> dict[str, pd.DataFrame]:
+    """Pool-column frames of token snapshots, as known at each bar."""
+    if tokens.empty:
+        return {}
+    tokens = tokens.copy()
+    tokens["time"] = (
+        pd.to_datetime(tokens["observed_at"], utc=True).dt.tz_localize(None).astype("datetime64[ns]")
+    )
+    tokens["top10_share"] = tokens["top10_pct"] / 100.0
+    # The vendor reports negative progress for some fresh curves; clip to [0, 1].
+    tokens["graduation"] = (tokens["graduation_pct"] / 100.0).clip(0.0, 1.0)
+    tokens["mint_risk"] = tokens[["mint_authority", "freeze_authority"]].max(axis=1, skipna=True)
+    names = {"holders": "holders", "top10_share": "top10_share",
+             "graduation": "graduation", "mint_risk": "mint_risk"}
+    bars = pd.DataFrame({"time": close.index.astype("datetime64[ns]")})
+    out = {name: pd.DataFrame(np.nan, index=close.index, columns=close.columns) for name in names}
+    by_token = {token: group.sort_values("time") for token, group in tokens.groupby("token")}
+    for pool in close.columns:
+        group = by_token.get(base_token.get(pool))
+        if group is None:
+            continue
+        for column in names:
+            known = group[["time", column]].dropna()
+            if known.empty:
+                continue
+            merged = pd.merge_asof(bars, known, on="time", direction="backward")
+            out[column][pool] = merged[column].to_numpy()
+    return {name: frame for name, frame in out.items() if frame.notna().any().any()}
 
 
 def _point_in_time_liquidity(snaps: pd.DataFrame, close: pd.DataFrame, grid: pd.DatetimeIndex) -> pd.DataFrame:
@@ -328,6 +469,13 @@ def _num(value: Any) -> float | None:
         return float(value) if value is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def _flag(value: Any) -> int | None:
+    """'yes' / 'no' authority flags as 1 / 0; anything else unknown."""
+    if value in ("yes", "no"):
+        return int(value == "yes")
+    return None
 
 
 def _chunks(items: list[str], size: int) -> Iterable[list[str]]:

@@ -2,6 +2,7 @@
 
     collect   register new Solana pools and snapshot tracked ones (loop with --every)
     backfill  pull 5-minute candles for collected pools
+    run       collector for launchd: collect + refresh the stalest candles, forever
     info      what is in the database
     demo      tear sheets on synthetic tapes, no API key or data needed
     research  Claude research loop on a panel (database or synthetic)
@@ -29,9 +30,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--db", type=Path, default=Path("meme.db"))
     p.add_argument("--pages", type=int, default=3)
     p.add_argument("--every", type=float, default=0.0, help="Seconds between passes; 0 = once.")
+    p.add_argument("--holder-calls", type=int, default=10,
+                   help="Token info calls per pass (holders, top-10, mint/freeze).")
 
     p = sub.add_parser("backfill")
     p.add_argument("--db", type=Path, default=Path("meme.db"))
+
+    p = sub.add_parser("run")
+    p.add_argument("--db", type=Path, default=Path("meme.db"))
+    p.add_argument("--pages", type=int, default=3)
+    p.add_argument("--every", type=float, default=120.0, help="Target seconds per pass.")
+    p.add_argument("--holder-calls", type=int, default=10)
+    p.add_argument("--backfill-per-pass", type=int, default=15)
+    p.add_argument("--stale-hours", type=float, default=6.0)
 
     p = sub.add_parser("info")
     p.add_argument("--db", type=Path, default=Path("meme.db"))
@@ -51,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     return {
         "collect": _collect,
         "backfill": _backfill,
+        "run": _run,
         "info": _info,
         "demo": _demo,
         "research": _research,
@@ -62,8 +74,9 @@ def _collect(args: argparse.Namespace) -> int:
 
     conn, client = connect(args.db), GeckoClient()
     while True:
-        stats = collect_once(conn, client, pages=args.pages)
-        print(f"[collect] +{stats.new_pools} pools, {stats.snapshots} snapshots", flush=True)
+        stats = collect_once(conn, client, pages=args.pages, holder_calls=args.holder_calls)
+        print(f"[collect] {time.strftime('%H:%M:%S')} +{stats.new_pools} pools, "
+              f"{stats.snapshots} snapshots, {stats.token_snapshots} token snapshots", flush=True)
         if args.every <= 0:
             return 0
         time.sleep(args.every)
@@ -77,11 +90,35 @@ def _backfill(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run(args: argparse.Namespace) -> int:
+    from ai_quant_lab.meme.geckoterminal import (
+        GeckoClient,
+        backfill_ohlcv,
+        collect_once,
+        connect,
+        stale_pools,
+    )
+
+    conn, client = connect(args.db), GeckoClient()
+    while True:
+        started = time.monotonic()
+        try:
+            stats = collect_once(conn, client, pages=args.pages, holder_calls=args.holder_calls)
+            pools = stale_pools(conn, limit=args.backfill_per_pass, stale_hours=args.stale_hours)
+            candles = backfill_ohlcv(conn, client, addresses=pools)
+            print(f"[run] {time.strftime('%Y-%m-%d %H:%M:%S')} +{stats.new_pools} pools, "
+                  f"{stats.snapshots} snapshots, {stats.token_snapshots} token snapshots, "
+                  f"{candles} candles from {len(pools)} pools", flush=True)
+        except Exception as exc:  # noqa: BLE001 — a collector must outlive API hiccups
+            print(f"[run] {time.strftime('%Y-%m-%d %H:%M:%S')} pass failed: {exc!r}", flush=True)
+        time.sleep(max(args.every - (time.monotonic() - started), 5.0))
+
+
 def _info(args: argparse.Namespace) -> int:
     from ai_quant_lab.meme.geckoterminal import connect, load_panel
 
     conn = connect(args.db)
-    for table in ("pools", "snapshots", "ohlcv"):
+    for table in ("pools", "snapshots", "token_snapshots", "ohlcv"):
         print(f"{table:10s} {conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]}")
     for dex, n in conn.execute("SELECT dex, COUNT(*) FROM pools GROUP BY dex ORDER BY 2 DESC"):
         print(f"  {dex}: {n}")
@@ -93,6 +130,8 @@ def _info(args: argparse.Namespace) -> int:
     print(f"panel {panel.close.shape[0]} bars × {panel.close.shape[1]} tokens, "
           f"{panel.close.index[0]} → {panel.close.index[-1]}")
     print(panel.survivorship_report())
+    fields = ["holders"] if panel.holders is not None else []
+    print("token fields:", ", ".join(fields + list(panel.extra)) or "none yet")
     return 0
 
 

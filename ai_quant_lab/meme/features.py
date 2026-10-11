@@ -60,6 +60,38 @@ def holder_growth(holders: pd.DataFrame, bars: int = 12) -> pd.DataFrame:
     return holders / holders.shift(bars) - 1.0
 
 
+def rug_screen(
+    mint_risk: pd.DataFrame | None = None,
+    top10_share: pd.DataFrame | None = None,
+    *,
+    max_top10: float = 0.5,
+    unknown_ok: bool = False,
+) -> pd.DataFrame | None:
+    """Token passes basic contract and concentration checks at bar t.
+
+    Fails if the creator can still mint or freeze, or if the ten largest
+    wallets hold more than `max_top10` of supply. A field nobody has observed
+    yet counts as a fail unless `unknown_ok`. Returns None if neither field
+    is given (collected data without token snapshots).
+    """
+    checks = []
+    if mint_risk is not None:
+        checks.append((mint_risk == 0) | (mint_risk.isna() & unknown_ok))
+    if top10_share is not None:
+        checks.append((top10_share <= max_top10) | (top10_share.isna() & unknown_ok))
+    if not checks:
+        return None
+    ok = checks[0]
+    for check in checks[1:]:
+        ok = ok & check
+    return ok
+
+
+def graduation_window(graduation: pd.DataFrame, low: float = 0.7, high: float = 1.0) -> pd.DataFrame:
+    """Bonding-curve progress in [low, high): close to migrating to a real pool."""
+    return (graduation >= low) & (graduation < high)
+
+
 def cross_rank(signal: pd.DataFrame, mask: pd.DataFrame | None = None) -> pd.DataFrame:
     """Percentile rank across tokens at each bar, within an optional mask."""
     if mask is not None:

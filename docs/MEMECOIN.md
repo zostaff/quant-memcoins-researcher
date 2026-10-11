@@ -31,11 +31,19 @@ python examples/10_memecoin_multiple_testing.py      # same thing as a script
 Real Solana data, collected point-in-time:
 
 ```bash
-python -m ai_quant_lab.meme collect --db meme.db --every 120   # keep running
-python -m ai_quant_lab.meme backfill --db meme.db              # 5-minute candles
+python -m ai_quant_lab.meme run --db data/meme.db              # keep running: snapshots + token fields + candles
+python -m ai_quant_lab.meme collect --db meme.db --every 120   # snapshots only
+python -m ai_quant_lab.meme backfill --db meme.db              # 5-minute candles for every pool
 python -m ai_quant_lab.meme info --db meme.db
 python -m ai_quant_lab.meme research --db meme.db --iterations 20   # needs ANTHROPIC_API_KEY
 ```
+
+`run` does everything in one process, because all calls share one rate limit
+(about 30 per minute): each pass registers new pools, snapshots the tracked
+ones, snapshots their tokens, then refreshes candles of the 15 stalest pools.
+`deploy/com.quantmeme.collector.plist` is a launchd template. On macOS a
+launchd job cannot read an external disk until the launched binary has Full
+Disk Access, so either keep the project on the internal disk or grant access.
 
 The research loop is the original Claude loop with a memecoin hypothesis
 prompt, a memecoin critic template and a code prompt that writes
@@ -83,6 +91,14 @@ rejects what it should.
 - Candles exist only for bars with trades. A pool silent for
   `dead_after_bars` bars, or whose reserve fell below `rug_reserve_usd`, is
   treated as dead for good.
-- No holder counts from this source: `holders` is `None` on collected data.
+- Token fields come from `tokens/{address}/info` (holders, top-10 share,
+  mint and freeze authority) and `tokens/multi` (pump.fun bonding-curve
+  progress). Each holds its last observed value from observation time on and
+  is NaN before. GeckoTerminal fills holder counts lazily: fresh tokens often
+  show none for a while. Info is one call per token, so each pass refreshes
+  only the `--holder-calls` stalest tokens.
+- `features.rug_screen(mint_risk, top10_share)` fails tokens whose creator can
+  still mint or freeze, or whose top-10 wallets hold more than half of supply;
+  unobserved counts as a fail unless `unknown_ok=True`.
 - The fee defaults in `ExecutionCosts` are placeholders. Set them from the
   venue you trade on.

@@ -16,6 +16,7 @@ Conventions:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -30,9 +31,11 @@ class TokenPanel:
     volume: pd.DataFrame
     holders: pd.DataFrame | None = None
     launch_time: pd.Series = field(default_factory=lambda: pd.Series(dtype="datetime64[ns]"))
+    # Further time × token fields by name (top10_share, graduation, mint_risk, ...).
+    extra: Mapping[str, pd.DataFrame] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        frames = {"liquidity": self.liquidity, "volume": self.volume}
+        frames = {"liquidity": self.liquidity, "volume": self.volume, **self.extra}
         if self.holders is not None:
             frames["holders"] = self.holders
         for name, frame in frames.items():
@@ -74,6 +77,7 @@ class TokenPanel:
         }
         if self.holders is not None:
             data["holders"] = self.holders
+        data.update(self.extra)
         return data
 
     def slice(self, start: object = None, end: object = None) -> TokenPanel:
@@ -85,6 +89,7 @@ class TokenPanel:
             volume=self.volume.loc[sl],
             holders=None if self.holders is None else self.holders.loc[sl],
             launch_time=self.launch_time,
+            extra={name: frame.loc[sl] for name, frame in self.extra.items()},
         )
 
     def death_bars(self) -> pd.Series:

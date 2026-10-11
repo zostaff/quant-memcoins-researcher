@@ -58,7 +58,9 @@ the rug window, overreaction and exhaustion after vertical moves.
 
 Rules:
 1. Data available: per-token close, pool liquidity (TVL), volume, holder
-   count. Nothing else: no social data, no wallet labels, no news.
+   count, top-10 wallet share of supply, pump.fun bonding-curve progress and
+   whether the creator can still mint or freeze. Nothing else: no social
+   data, no wallet labels, no news.
 2. Long only. No shorting, no leverage.
 3. Costs are brutal (several % per round trip in small pools), so prefer
    holding periods of hours to days and liquidity filters over fast rotation.

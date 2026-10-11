@@ -8,8 +8,8 @@ at increasing capital and watch the net Sharpe decay.
 
 from __future__ import annotations
 
-from dataclasses import replace
 from collections.abc import Sequence
+from dataclasses import replace
 
 import pandas as pd
 

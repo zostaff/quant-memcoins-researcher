@@ -24,7 +24,7 @@ class Settings(BaseModel):
         description="Optional. Examples 01-05 run without it.",
     )
     model: str = Field(
-        default_factory=lambda: _read_env("AI_QUANT_LAB_MODEL", "claude-sonnet-4-6"),
+        default_factory=lambda: _read_env("AI_QUANT_LAB_MODEL", "claude-opus-5-5"),
     )
 
     max_llm_calls: int = Field(

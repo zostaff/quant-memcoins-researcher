@@ -41,3 +41,6 @@ data/cache/
 # macOS on exFAT
 ._*
 .DS_Store
+# collected market data
+data/*.db
+data/*.log

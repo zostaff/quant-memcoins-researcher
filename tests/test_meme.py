@@ -30,7 +30,7 @@ from ai_quant_lab.meme import (
 )
 from ai_quant_lab.meme import features as F
 from ai_quant_lab.meme.amm import swap_loss_fraction
-from ai_quant_lab.meme.geckoterminal import _SCHEMA, load_panel
+from ai_quant_lab.meme.geckoterminal import _SCHEMA, collect_once, load_panel
 from ai_quant_lab.orchestrator.loop import LoopConfig, run_research_loop
 from ai_quant_lab.orchestrator.sandbox import SandboxError, run_strategy
 
@@ -207,6 +207,82 @@ def test_load_panel_point_in_time_and_death():
     assert liq.iloc[4] == pytest.approx(20_000)
     assert liq.iloc[8] == pytest.approx(20_000 * np.sqrt(9 / 5))  # sqrt(price) rule
     assert panel.close["A"].iloc[16:].isna().all()       # dead for good, despite late trade
+    assert panel.holders is None and not panel.extra     # no token snapshots collected
+
+
+def test_token_fields_are_point_in_time():
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA)
+    conn.execute("INSERT INTO pools VALUES ('A', 'A/SOL', 'tokA', 'sol', 'pump-fun', "
+                 "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')")
+    t0 = int(pd.Timestamp("2026-01-01").timestamp())
+    for i in range(12):
+        conn.execute("INSERT INTO ohlcv VALUES ('A', ?, 1, 1, 1, 1, 100)", (t0 + 300 * i,))
+    conn.execute("INSERT INTO token_snapshots VALUES ('tokA', '2026-01-01T00:15:00+00:00', "
+                 "120, 45.0, 0, 0, 30.0, 82.0, 0)")
+    conn.execute("INSERT INTO token_snapshots VALUES ('tokA', '2026-01-01T00:40:00+00:00', "
+                 "300, NULL, NULL, NULL, NULL, 100.0, 1)")
+    panel = load_panel(conn)
+    holders = panel.holders["A"]
+    assert holders.iloc[:3].isna().all()                 # unknown before first reading
+    assert holders.iloc[3] == 120 and holders.iloc[7] == 120
+    assert holders.iloc[8] == 300
+    assert panel.extra["top10_share"]["A"].iloc[10] == pytest.approx(0.45)  # carried, not erased
+    assert panel.extra["graduation"]["A"].iloc[5] == pytest.approx(0.82)
+    assert panel.extra["mint_risk"]["A"].iloc[5] == 0
+    assert set(panel.as_strategy_input()) >= {"holders", "top10_share", "graduation", "mint_risk"}
+
+
+def test_rug_screen_fails_unknown_and_risky_tokens():
+    idx = pd.RangeIndex(1)
+    mint = pd.DataFrame({"a": [0.0], "b": [1.0], "c": [0.0], "d": [np.nan]}, index=idx)
+    top10 = pd.DataFrame({"a": [0.3], "b": [0.3], "c": [0.8], "d": [0.3]}, index=idx)
+    ok = F.rug_screen(mint, top10).iloc[0]
+    assert ok.tolist() == [True, False, False, False]
+    assert F.rug_screen(mint, top10, unknown_ok=True).iloc[0]["d"]
+    assert F.rug_screen() is None
+    grad = pd.DataFrame({"a": [0.5], "b": [0.75], "c": [1.0]})
+    assert F.graduation_window(grad).iloc[0].tolist() == [False, True, False]
+
+
+class _FakeGecko:
+    """Offline stand-in for GeckoClient: one new pool, token info and launchpad data."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def get(self, path, params=None):
+        self.calls.append(path)
+        if path.endswith("/new_pools"):
+            if params["page"] > 1:
+                return {"data": []}
+            return {"data": [{
+                "attributes": {"address": "P1", "name": "X/SOL", "pool_created_at": "2099-01-01T00:00:00Z",
+                               "base_token_price_usd": "0.001", "reserve_in_usd": "9000"},
+                "relationships": {"base_token": {"data": {"id": "solana_T1"}},
+                                  "dex": {"data": {"id": "pump-fun"}}},
+            }]}
+        if "/tokens/multi/" in path:
+            return {"data": [{"attributes": {"address": "T1", "launchpad_details": {
+                "graduation_percentage": 64.0, "completed": False}}}]}
+        if path.endswith("/T1/info"):
+            return {"data": {"attributes": {"holders": {"count": 77, "distribution_percentage": {"top_10": "51.5"}},
+                                            "mint_authority": "no", "freeze_authority": "yes"}}}
+        return {"data": []}
+
+
+def test_collect_once_snapshots_tokens_within_budget():
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA)
+    client = _FakeGecko()
+    stats = collect_once(conn, client, pages=2, holder_calls=1)
+    assert stats.new_pools == 1 and stats.token_snapshots == 1
+    row = conn.execute("SELECT holders, top10_pct, mint_authority, freeze_authority, graduation_pct, "
+                       "graduated FROM token_snapshots").fetchone()
+    assert row == (77, 51.5, 0, 1, 64.0, 0)
+    assert sum(c.endswith("/info") for c in client.calls) == 1
+    collect_once(conn, client, pages=1, holder_calls=0)
+    assert sum(c.endswith("/info") for c in client.calls) == 1   # budget 0: no info calls
 
 
 # ---------------------------------------------------------------- sandbox & loop
@@ -280,3 +356,27 @@ def test_sandbox_import_whitelist_is_exact(small_universe):
     for bad in ("import ai_quant_lab.config", "from ai_quant_lab import config", "import os"):
         with pytest.raises(SandboxError):
             run_strategy(bad + "\n" + _GOOD, data)
+
+
+def test_new_models_get_no_temperature():
+    from ai_quant_lab.agents.base import _sampling_params
+
+    assert _sampling_params("claude-sonnet-4-6", 2048, 0.4) == {"max_tokens": 2048, "temperature": 0.4}
+    for model in ("claude-opus-5-5", "claude-sonnet-5-5", "claude-opus-4-8"):
+        params = _sampling_params(model, 2048, 0.4)
+        assert "temperature" not in params and params["max_tokens"] >= 16_000
+
+
+def test_stale_pools_picks_unbackfilled_then_stalest():
+    from ai_quant_lab.meme.geckoterminal import stale_pools
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA)
+    now = pd.Timestamp.now(tz="UTC")
+    for name, age_h in (("new", 1), ("old", 200), ("fresh", 2), ("stale", 30)):
+        launched = (now - pd.Timedelta(hours=age_h)).isoformat()
+        conn.execute("INSERT INTO pools VALUES (?, ?, 't', 'sol', 'x', ?, ?)", (name, name, launched, launched))
+    conn.execute("INSERT INTO ohlcv VALUES ('fresh', ?, 1, 1, 1, 1, 1)", (int(now.timestamp()) - 600,))
+    conn.execute("INSERT INTO ohlcv VALUES ('stale', ?, 1, 1, 1, 1, 1)", (int(now.timestamp()) - 20 * 3600,))
+    assert stale_pools(conn, limit=10) == ["new", "stale"]   # 'old' left the window, 'fresh' is fresh
+    assert stale_pools(conn, limit=1) == ["new"]

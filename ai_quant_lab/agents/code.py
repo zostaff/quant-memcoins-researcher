@@ -65,7 +65,11 @@ Constraints (non-negotiable):
 1. Output ONE function: `strategy(panel: dict) -> pd.DataFrame`.
    `panel` holds time × token DataFrames: 'close' (USD price, NaN before launch
    and after death), 'liquidity' (pool TVL in USD, 0 when dead), 'volume'
-   (USD per bar) and, when available, 'holders' (holder count).
+   (USD per bar) and, when available: 'holders' (holder count), 'top10_share'
+   (supply share of the 10 largest wallets, 0..1), 'graduation' (pump.fun
+   bonding-curve progress, 0..1) and 'mint_risk' (1 if the creator can still
+   mint or freeze). Token fields are NaN until first observed; use
+   `panel.get(name)` and handle None.
 2. Return LONG-ONLY target weights shaped exactly like panel['close'].
    Weights >= 0, each row sums to <= 1 (the rest is cash). The engine caps
    each weight and each position's share of the pool.
@@ -79,7 +83,8 @@ Constraints (non-negotiable):
 6. Imports allowed: numpy as np, pandas as pd, and
    `from ai_quant_lab.meme import features` (tradeable, age_bars,
    trailing_return, drawdown_from_high, liquidity_growth, volume_to_liquidity,
-   volume_zscore, holder_growth, cross_rank, top_n_equal_weight, hold_for).
+   volume_zscore, holder_growth, rug_screen, graduation_window, cross_rank,
+   top_n_equal_weight, hold_for).
 7. Output ONLY the code in a ```python block.
 """
 

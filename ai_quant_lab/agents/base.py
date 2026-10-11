@@ -67,6 +67,18 @@ def extract_first_json(text: str) -> dict[str, Any]:
     raise ValueError(f"No JSON object found in response:\n{cleaned[:500]}")
 
 
+# Models that still take `temperature`. Opus 4.7+ and every Claude 5 model reject it.
+_SAMPLING_MODEL_PREFIXES = ("claude-3", "claude-sonnet-4", "claude-opus-4", "claude-haiku-4")
+_NO_SAMPLING_PREFIXES = ("claude-opus-4-7", "claude-opus-4-8")
+
+
+def _sampling_params(model: str, max_tokens: int, temperature: float) -> dict[str, Any]:
+    if model.startswith(_SAMPLING_MODEL_PREFIXES) and not model.startswith(_NO_SAMPLING_PREFIXES):
+        return {"max_tokens": max_tokens, "temperature": temperature}
+    # Thinking is always on and counts against max_tokens.
+    return {"max_tokens": max(max_tokens, 16_000), "output_config": {"effort": "medium"}}
+
+
 def call_claude(
     system: str,
     messages: Sequence[AgentMessage],
@@ -86,6 +98,9 @@ def call_claude(
         model: Override the configured model.
         max_tokens: Output budget.
         temperature: Sampling temperature. 0.4 is a good default for structured tasks.
+            Ignored on models that always think (Claude 5 family and later),
+            which reject sampling parameters; those get `max_tokens` raised
+            to leave room for thinking.
         cache_system: Whether to apply ephemeral caching to the system block.
         max_retries: Number of retries on transient API errors.
 
@@ -118,10 +133,9 @@ def call_claude(
         try:
             response = client.messages.create(
                 model=use_model,
-                max_tokens=max_tokens,
-                temperature=temperature,
                 system=system_blocks,
                 messages=api_messages,
+                **_sampling_params(use_model, max_tokens, temperature),
             )
             text = "".join(
                 block.text for block in response.content if getattr(block, "type", "") == "text"

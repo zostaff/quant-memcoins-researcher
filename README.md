@@ -1,19 +1,24 @@
-# ai-quant-lab
+# quant-memcoins-researcher
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-131%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-136%20passing-brightgreen.svg)](tests/)
 [![Claude](https://img.shields.io/badge/Claude-Anthropic_SDK-7AD6F8.svg)](https://docs.anthropic.com)
 
-> AI-powered quant research engine. Claude generates strategies; the system validates and kills the bad ones.
+> The hedge-fund quant research stack, moved to the Solana memecoin market.
+> Claude generates strategies; the system prices them like a fund would and kills the bad ones.
+
+Built on the `ai_quant_lab` research engine (deflated Sharpe, trial counting,
+correlation gates, purged CV). The memecoin layer lives in
+[`ai_quant_lab/meme/`](ai_quant_lab/meme/).
 
 ---
 
 ## Quick start
 
 ```bash
-git clone https://github.com/yourname/ai-quant-lab
-cd ai-quant-lab
+git clone https://github.com/zostaff/ai-quant-researcher quant-memcoins-researcher
+cd quant-memcoins-researcher && git checkout memecoin
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env                     # fill in ANTHROPIC_API_KEY (optional for examples 1-5)
@@ -28,15 +33,38 @@ That's it. Examples 1-5 run without an API key on synthetic data. Examples
 
 ## Memecoin market
 
-The same validation core, pointed at Solana memecoins: point-in-time token
-universe with rugs written off, exact AMM execution costs, meme risk factors,
-capacity curves and a fund-style tear sheet. See [docs/MEMECOIN.md](docs/MEMECOIN.md).
+The same validation core, pointed at Solana memecoins. Full guide:
+[docs/MEMECOIN.md](docs/MEMECOIN.md). Product overview in Russian:
+[docs/PRODUCT.ru.md](docs/PRODUCT.ru.md).
+
+| Fund tool | Memecoin version |
+|---|---|
+| Point-in-time universe | Pools registered the moment they launch; dead tokens stay in the panel, a rug while held is written off to zero |
+| Transaction cost model | Exact constant-product swap loss `1 - (1-f)·Q/(Q+s)` + priority fee + MEV haircut |
+| Participation limit, no-trade band | Position ≤ 2% of pool TVL; rebalance only past a 25% drift |
+| Risk model, alpha vs beta | Meme factors MKT, SIZE, MOM, AGE, FLOW (rugs included) and OLS attribution |
+| Capacity | Same weights run at $1k, $10k, $100k, $1M; capacity = where return on capital halves |
+| Multiple testing | Deflated Sharpe fed by the honest trial count |
+| Rug screening | Holders, top-10 wallet share, mint / freeze authority, pump.fun bonding-curve progress, all point-in-time |
+| Tear sheet | All of the above in one call, plus Sharpe of each half |
 
 ```bash
-python -m ai_quant_lab.meme demo                          # synthetic, no API key
-python -m ai_quant_lab.meme collect --db meme.db --every 120
-python -m ai_quant_lab.meme research --db meme.db         # Claude loop on real pools
+python -m ai_quant_lab.meme demo                     # synthetic tapes, no API key, ~1 min
+python -m ai_quant_lab.meme run --db data/meme.db    # collector: pools, tokens, candles (keep running)
+python -m ai_quant_lab.meme info --db data/meme.db   # what has been collected
+python -m ai_quant_lab.meme research --db data/meme.db --iterations 20   # Claude loop, needs a key
 ```
+
+What the demo shows: on a tape with no edge all 20 strategy variants lose
+money. On a tape with a planted edge the best variant makes +127% with
+Sharpe 5.7 and is still rejected: a losing first half, meme-market beta 0.29,
+alpha t-stat −0.73, deflated Sharpe p = 0.71. The profit was the market.
+
+Data comes from the free GeckoTerminal API (pump.fun, PumpSwap, Meteora,
+about 30 calls a minute). The collector has to run for days before there is
+history to research on. `deploy/com.quantmeme.collector.plist` is a launchd
+template; on macOS it needs Full Disk Access if the project sits on an
+external disk.
 
 ---
 
