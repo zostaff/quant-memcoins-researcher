@@ -34,8 +34,7 @@ That's it. Examples 1-5 run without an API key on synthetic data. Examples
 ## Memecoin market
 
 The same validation core, pointed at Solana memecoins. Full guide:
-[docs/MEMECOIN.md](docs/MEMECOIN.md). Product overview in Russian:
-[docs/PRODUCT.ru.md](docs/PRODUCT.ru.md).
+[docs/MEMECOIN.md](docs/MEMECOIN.md).
 
 | Fund tool | Memecoin version |
 |---|---|
