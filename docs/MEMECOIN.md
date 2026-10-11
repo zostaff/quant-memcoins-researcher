@@ -21,6 +21,27 @@ underneath it.
 | Multiple testing | deflated Sharpe | Same `deflated_sharpe`, fed by `ResearchMemory` trial count |
 | Tear sheet | | `tear_sheet(...)`: all of the above in one call |
 
+## Networks
+
+| | Solana | Robinhood Chain |
+|---|---|---|
+| GeckoTerminal id | `solana` | `robinhood` |
+| Venues seen | pump.fun, PumpSwap, Meteora | Uniswap v4 / v3, Pons launchpad, Bankr |
+| Pool fee | 1% default | fee tier from the pool name (1%, 0.3%, 0.01%) into `panel.pool_fee` |
+| Per-transaction cost | priority fee + tip, $0.10 default | L2 gas in ETH, $0.02 default |
+| MEV | sandwiches common, 0.2% haircut | sequencer, no public mempool, 0.1% haircut |
+| Token fields | holders, top-10, mint / freeze, curve progress | holders, top-10 when GeckoTerminal has them, Pons curve progress |
+
+`costs_for_network(name)` returns the defaults above. They are placeholders.
+The constant-product cost model is exact for bonding curves and full-range
+pools and conservative for concentrated liquidity (Uniswap v3/v4), where
+depth near the price is higher.
+
+One database can hold both chains. `run` collects every network in
+`--networks` (default `solana,robinhood`) under one rate limit;
+`load_panel(conn, network="robinhood")` and `research --network robinhood`
+work on one chain at a time.
+
 ## Quick start
 
 ```bash
@@ -28,14 +49,14 @@ python -m ai_quant_lab.meme demo                     # synthetic, no key, ~1 min
 python examples/10_memecoin_multiple_testing.py      # same thing as a script
 ```
 
-Real Solana data, collected point-in-time:
+Real data from Solana and Robinhood Chain, collected point-in-time:
 
 ```bash
-python -m ai_quant_lab.meme run --db data/meme.db              # keep running: snapshots + token fields + candles
+python -m ai_quant_lab.meme run --db data/meme.db              # keep running: both chains, snapshots + token fields + candles
 python -m ai_quant_lab.meme collect --db meme.db --every 120   # snapshots only
 python -m ai_quant_lab.meme backfill --db meme.db              # 5-minute candles for every pool
 python -m ai_quant_lab.meme info --db meme.db
-python -m ai_quant_lab.meme research --db meme.db --iterations 20   # needs ANTHROPIC_API_KEY
+python -m ai_quant_lab.meme research --db meme.db --network robinhood --iterations 20   # needs ANTHROPIC_API_KEY
 ```
 
 `run` does everything in one process, because all calls share one rate limit

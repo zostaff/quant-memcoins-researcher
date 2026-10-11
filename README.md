@@ -2,10 +2,10 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-136%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-139%20passing-brightgreen.svg)](tests/)
 [![Claude](https://img.shields.io/badge/Claude-Anthropic_SDK-7AD6F8.svg)](https://docs.anthropic.com)
 
-> The hedge-fund quant research stack, moved to the Solana memecoin market.
+> The hedge-fund quant research stack, moved to the memecoin market on Solana and Robinhood Chain.
 > Claude generates strategies; the system prices them like a fund would and kills the bad ones.
 
 Built on the `ai_quant_lab` research engine (deflated Sharpe, trial counting,
@@ -33,13 +33,14 @@ That's it. Examples 1-5 run without an API key on synthetic data. Examples
 
 ## Memecoin market
 
-The same validation core, pointed at Solana memecoins. Full guide:
+The same validation core, pointed at memecoins on Solana (pump.fun, PumpSwap,
+Meteora) and Robinhood Chain (Uniswap v4/v3, Pons). Full guide:
 [docs/MEMECOIN.md](docs/MEMECOIN.md).
 
 | Fund tool | Memecoin version |
 |---|---|
 | Point-in-time universe | Pools registered the moment they launch; dead tokens stay in the panel, a rug while held is written off to zero |
-| Transaction cost model | Exact constant-product swap loss `1 - (1-f)·Q/(Q+s)` + priority fee + MEV haircut |
+| Transaction cost model | Exact constant-product swap loss `1 - (1-f)·Q/(Q+s)` + priority fee + MEV haircut, per-chain presets, per-pool Uniswap fee tiers |
 | Participation limit, no-trade band | Position ≤ 2% of pool TVL; rebalance only past a 25% drift |
 | Risk model, alpha vs beta | Meme factors MKT, SIZE, MOM, AGE, FLOW (rugs included) and OLS attribution |
 | Capacity | Same weights run at $1k, $10k, $100k, $1M; capacity = where return on capital halves |
@@ -49,9 +50,9 @@ The same validation core, pointed at Solana memecoins. Full guide:
 
 ```bash
 python -m ai_quant_lab.meme demo                     # synthetic tapes, no API key, ~1 min
-python -m ai_quant_lab.meme run --db data/meme.db    # collector: pools, tokens, candles (keep running)
+python -m ai_quant_lab.meme run --db data/meme.db    # collector for Solana + Robinhood Chain (keep running)
 python -m ai_quant_lab.meme info --db data/meme.db   # what has been collected
-python -m ai_quant_lab.meme research --db data/meme.db --iterations 20   # Claude loop, needs a key
+python -m ai_quant_lab.meme research --db data/meme.db --network robinhood --iterations 20   # Claude loop, needs a key
 ```
 
 What the demo shows: on a tape with no edge all 20 strategy variants lose
@@ -59,8 +60,8 @@ money. On a tape with a planted edge the best variant makes +127% with
 Sharpe 5.7 and is still rejected: a losing first half, meme-market beta 0.29,
 alpha t-stat −0.73, deflated Sharpe p = 0.71. The profit was the market.
 
-Data comes from the free GeckoTerminal API (pump.fun, PumpSwap, Meteora,
-about 30 calls a minute). The collector has to run for days before there is
+Data comes from the free GeckoTerminal API (about 30 calls a minute, shared
+by both chains). The collector has to run for days before there is
 history to research on. `deploy/com.quantmeme.collector.plist` is a launchd
 template; on macOS it needs Full Disk Access if the project sits on an
 external disk.

@@ -33,6 +33,8 @@ class TokenPanel:
     launch_time: pd.Series = field(default_factory=lambda: pd.Series(dtype="datetime64[ns]"))
     # Further time × token fields by name (top10_share, graduation, mint_risk, ...).
     extra: Mapping[str, pd.DataFrame] = field(default_factory=dict)
+    # Per-token pool fee as a fraction (Uniswap fee tiers differ by pool); None = config default.
+    pool_fee: pd.Series | None = None
 
     def __post_init__(self) -> None:
         frames = {"liquidity": self.liquidity, "volume": self.volume, **self.extra}
@@ -90,6 +92,7 @@ class TokenPanel:
             holders=None if self.holders is None else self.holders.loc[sl],
             launch_time=self.launch_time,
             extra={name: frame.loc[sl] for name, frame in self.extra.items()},
+            pool_fee=self.pool_fee,
         )
 
     def death_bars(self) -> pd.Series:

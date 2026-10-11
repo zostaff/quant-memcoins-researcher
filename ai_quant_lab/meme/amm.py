@@ -52,6 +52,25 @@ class ExecutionCosts:
             raise ValueError("cost components must be non-negative")
 
 
+# Starting points per chain. Placeholders: set them from the venue you trade on.
+# Robinhood Chain is an Arbitrum L2 with ETH gas and a sequencer instead of a
+# public mempool, so a transaction costs cents and sandwiching is harder than
+# on Solana. Uniswap pools there carry their own fee tier, which `load_panel`
+# reads from the pool name into `panel.pool_fee`.
+NETWORK_COSTS: dict[str, ExecutionCosts] = {
+    "solana": ExecutionCosts(),
+    "robinhood": ExecutionCosts(swap_fee=0.01, priority_fee_usd=0.02, mev_haircut=0.001),
+}
+
+
+def costs_for_network(network: str) -> ExecutionCosts:
+    """Default `ExecutionCosts` for a GeckoTerminal network id."""
+    try:
+        return NETWORK_COSTS[network]
+    except KeyError:
+        raise ValueError(f"No cost preset for network {network!r}; pass ExecutionCosts yourself") from None
+
+
 def quote_reserve(liquidity_usd: np.ndarray | float) -> np.ndarray | float:
     """Quote-side reserve from total pool TVL (both sides at equal value)."""
     return np.asarray(liquidity_usd, dtype=float) / 2.0
@@ -60,9 +79,14 @@ def quote_reserve(liquidity_usd: np.ndarray | float) -> np.ndarray | float:
 def swap_loss_fraction(
     trade_usd: np.ndarray | float,
     liquidity_usd: np.ndarray | float,
-    swap_fee: float,
+    swap_fee: np.ndarray | float,
 ) -> np.ndarray:
-    """Fraction of `trade_usd` lost to fee + curve slippage on one leg."""
+    """Fraction of `trade_usd` lost to fee + curve slippage on one leg.
+
+    Exact for constant-product pools and bonding curves. For concentrated
+    liquidity (Uniswap v3/v4) it is conservative: depth near the price is
+    higher than a full-range pool of the same TVL.
+    """
     trade = np.abs(np.asarray(trade_usd, dtype=float))
     reserve = quote_reserve(liquidity_usd)
     with np.errstate(divide="ignore", invalid="ignore"):

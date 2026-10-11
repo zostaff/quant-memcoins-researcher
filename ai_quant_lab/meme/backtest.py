@@ -76,6 +76,9 @@ def meme_backtest(
     weights = weights.reindex(index=panel.close.index, columns=panel.tokens)
     close = panel.close.to_numpy(dtype=float)
     liquidity = panel.liquidity.fillna(0.0).to_numpy(dtype=float)
+    fee_rate: np.ndarray | float = costs.swap_fee
+    if panel.pool_fee is not None:
+        fee_rate = panel.pool_fee.reindex(panel.tokens).fillna(costs.swap_fee).to_numpy(dtype=float)
     w = np.nan_to_num(weights.to_numpy(dtype=float), nan=0.0)
     w = np.clip(w, 0.0, config.max_weight)
     row_sum = w.sum(axis=1, keepdims=True)
@@ -133,16 +136,16 @@ def meme_backtest(
 
         sells = np.minimum(delta, 0.0)
         buys = np.maximum(delta, 0.0)
-        sell_cost = _cost_parts(sells, liquidity[t], costs)
+        sell_cost = _cost_parts(sells, liquidity[t], costs, fee_rate)
         cash += -sells.sum() - sell_cost.sum()
         holdings += sells
 
-        buy_cost = _cost_parts(buys, liquidity[t], costs)
+        buy_cost = _cost_parts(buys, liquidity[t], costs, fee_rate)
         budget = max(cash, 0.0)
         spend = buys.sum() + buy_cost.sum()
         if spend > budget and spend > 0:
             buys = buys * (budget / spend)
-            buy_cost = _cost_parts(buys, liquidity[t], costs)
+            buy_cost = _cost_parts(buys, liquidity[t], costs, fee_rate)
         cash -= buys.sum() + buy_cost.sum()
         holdings += buys
 
@@ -194,11 +197,13 @@ def meme_backtest(
     )
 
 
-def _cost_parts(trades: np.ndarray, liquidity: np.ndarray, costs: ExecutionCosts) -> np.ndarray:
+def _cost_parts(
+    trades: np.ndarray, liquidity: np.ndarray, costs: ExecutionCosts, fee_rate: np.ndarray | float
+) -> np.ndarray:
     """4 × N array of USD costs: fee, curve impact, MEV, priority fee."""
     size = np.abs(trades)
-    curve = size * swap_loss_fraction(size, liquidity, costs.swap_fee)
-    fee = size * costs.swap_fee
+    curve = size * swap_loss_fraction(size, liquidity, fee_rate)
+    fee = size * fee_rate
     impact = np.maximum(curve - fee, 0.0)
     mev = size * costs.mev_haircut
     priority = np.where(size > 0, costs.priority_fee_usd, 0.0)

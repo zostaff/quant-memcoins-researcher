@@ -1,4 +1,8 @@
-"""Point-in-time Solana memecoin data from the free GeckoTerminal API.
+"""Point-in-time memecoin data from the free GeckoTerminal API.
+
+Networks: Solana (pump.fun, PumpSwap, Meteora) and Robinhood Chain
+(GeckoTerminal id `robinhood`: Uniswap v3/v4 pools and the Pons launchpad).
+One database can hold both; every pool row carries its network.
 
 Survivorship is decided at collection time, not at analysis time. A pool is
 registered the moment it shows up in `new_pools`; from then on it stays in
@@ -28,6 +32,7 @@ spaces calls accordingly.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 import urllib.error
@@ -46,6 +51,7 @@ from ai_quant_lab.meme.panel import TokenPanel
 
 API = "https://api.geckoterminal.com/api/v2"
 NETWORK = "solana"
+NETWORKS = ("solana", "robinhood")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS pools (
@@ -55,7 +61,9 @@ CREATE TABLE IF NOT EXISTS pools (
     quote_token TEXT,
     dex TEXT,
     created_at TEXT,
-    first_seen_at TEXT NOT NULL
+    first_seen_at TEXT NOT NULL,
+    network TEXT NOT NULL DEFAULT 'solana',
+    fee_pct REAL
 );
 CREATE TABLE IF NOT EXISTS snapshots (
     address TEXT NOT NULL,
@@ -125,6 +133,13 @@ class GeckoClient:
 def connect(db_path: str | Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
     conn.executescript(_SCHEMA)
+    # Databases collected before multi-network support: every pool was Solana.
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(pools)")}
+    if "network" not in columns:
+        conn.execute("ALTER TABLE pools ADD COLUMN network TEXT NOT NULL DEFAULT 'solana'")
+    if "fee_pct" not in columns:
+        conn.execute("ALTER TABLE pools ADD COLUMN fee_pct REAL")
+    conn.commit()
     return conn
 
 
@@ -139,6 +154,7 @@ def collect_once(
     conn: sqlite3.Connection,
     client: GeckoClient | None = None,
     *,
+    network: str = NETWORK,
     pages: int = 3,
     track_hours: float = 72.0,
     holder_calls: int = 10,
@@ -151,14 +167,14 @@ def collect_once(
     """
     client = client or GeckoClient()
     now = _utcnow()
-    before = conn.execute("SELECT COUNT(*) FROM pools").fetchone()[0]
+    before = conn.execute("SELECT COUNT(*) FROM pools WHERE network = ?", (network,)).fetchone()[0]
     seen: set[str] = set()
     snapshots = 0
 
     for page in range(1, pages + 1):
-        payload = client.get(f"/networks/{NETWORK}/new_pools", {"page": page})
+        payload = client.get(f"/networks/{network}/new_pools", {"page": page})
         for pool in payload.get("data", []):
-            _upsert_pool(conn, pool, now)
+            _upsert_pool(conn, pool, now, network)
             snapshots += _insert_snapshot(conn, pool, now)
             seen.add(pool["attributes"]["address"])
 
@@ -166,12 +182,13 @@ def collect_once(
     tracked = [
         row[0]
         for row in conn.execute(
-            "SELECT address FROM pools WHERE COALESCE(created_at, first_seen_at) >= ?", (cutoff,)
+            "SELECT address FROM pools WHERE network = ? AND COALESCE(created_at, first_seen_at) >= ?",
+            (network, cutoff),
         )
         if row[0] not in seen
     ]
     for batch in _chunks(tracked, 30):
-        payload = client.get(f"/networks/{NETWORK}/pools/multi/{','.join(batch)}")
+        payload = client.get(f"/networks/{network}/pools/multi/{','.join(batch)}")
         returned = set()
         for pool in payload.get("data", []):
             snapshots += _insert_snapshot(conn, pool, now)
@@ -186,27 +203,27 @@ def collect_once(
             )
             snapshots += 1
 
-    token_rows = _snapshot_tokens(conn, client, cutoff, now, holder_calls)
+    token_rows = _snapshot_tokens(conn, client, network, cutoff, now, holder_calls)
     conn.commit()
-    after = conn.execute("SELECT COUNT(*) FROM pools").fetchone()[0]
+    after = conn.execute("SELECT COUNT(*) FROM pools WHERE network = ?", (network,)).fetchone()[0]
     return CollectStats(new_pools=after - before, snapshots=snapshots, token_snapshots=token_rows)
 
 
 def _snapshot_tokens(
-    conn: sqlite3.Connection, client: GeckoClient, cutoff: str, now: str, holder_calls: int
+    conn: sqlite3.Connection, client: GeckoClient, network: str, cutoff: str, now: str, holder_calls: int
 ) -> int:
     tokens = [
         row[0]
         for row in conn.execute(
             "SELECT DISTINCT base_token FROM pools "
-            "WHERE base_token IS NOT NULL AND COALESCE(created_at, first_seen_at) >= ?",
-            (cutoff,),
+            "WHERE network = ? AND base_token IS NOT NULL AND COALESCE(created_at, first_seen_at) >= ?",
+            (network, cutoff),
         )
     ]
     rows: dict[str, dict[str, Any]] = {t: {} for t in tokens}
 
     for batch in _chunks(tokens, 30):
-        payload = client.get(f"/networks/{NETWORK}/tokens/multi/{','.join(batch)}")
+        payload = client.get(f"/networks/{network}/tokens/multi/{','.join(batch)}")
         for token in payload.get("data", []):
             attrs = token.get("attributes") or {}
             pad = attrs.get("launchpad_details") or {}
@@ -224,7 +241,7 @@ def _snapshot_tokens(
         ).fetchall()
     )
     for token in sorted(tokens, key=lambda t: last_seen.get(t) or "")[: max(holder_calls, 0)]:
-        data = client.get(f"/networks/{NETWORK}/tokens/{token}/info").get("data")
+        data = client.get(f"/networks/{network}/tokens/{token}/info").get("data")
         attrs = (data.get("attributes") or {}) if isinstance(data, dict) else {}
         holders = attrs.get("holders") or {}
         top10 = (holders.get("distribution_percentage") or {}).get("top_10")
@@ -260,12 +277,13 @@ def backfill_ohlcv(
 ) -> int:
     """Fetch up to 1000 recent candles per pool. Returns rows inserted."""
     client = client or GeckoClient()
+    network_of = dict(conn.execute("SELECT address, network FROM pools"))
     if addresses is None:
-        addresses = [row[0] for row in conn.execute("SELECT address FROM pools")]
+        addresses = list(network_of)
     inserted = 0
     for address in addresses:
         payload = client.get(
-            f"/networks/{NETWORK}/pools/{address}/ohlcv/minute",
+            f"/networks/{network_of.get(address, NETWORK)}/pools/{address}/ohlcv/minute",
             {"aggregate": aggregate_minutes, "limit": 1000, "currency": "usd"},
         )
         data = payload.get("data") or {}
@@ -278,7 +296,12 @@ def backfill_ohlcv(
 
 
 def stale_pools(
-    conn: sqlite3.Connection, *, limit: int, track_hours: float = 84.0, stale_hours: float = 6.0
+    conn: sqlite3.Connection,
+    *,
+    limit: int,
+    track_hours: float = 84.0,
+    stale_hours: float = 6.0,
+    network: str | None = None,
 ) -> list[str]:
     """Pools worth a candle refresh: launched within `track_hours`, newest stored
     candle older than `stale_hours` (or none). Never-backfilled first, then stalest.
@@ -291,9 +314,10 @@ def stale_pools(
     fresh_after = int((now - pd.Timedelta(hours=stale_hours)).timestamp())
     rows = conn.execute(
         "SELECT p.address, MAX(o.ts) AS last_ts FROM pools p LEFT JOIN ohlcv o ON o.address = p.address "
-        "WHERE COALESCE(p.created_at, p.first_seen_at) >= ? GROUP BY p.address "
+        "WHERE COALESCE(p.created_at, p.first_seen_at) >= ? AND (? IS NULL OR p.network = ?) "
+        "GROUP BY p.address "
         "HAVING last_ts IS NULL OR last_ts < ? ORDER BY last_ts IS NOT NULL, last_ts LIMIT ?",
-        (cutoff, fresh_after, limit),
+        (cutoff, network, network, fresh_after, limit),
     ).fetchall()
     return [row[0] for row in rows]
 
@@ -304,6 +328,7 @@ def load_panel(
     bar: str = "5min",
     dead_after_bars: int = 12,
     rug_reserve_usd: float = 100.0,
+    network: str | None = None,
 ) -> TokenPanel:
     """Build a point-in-time TokenPanel from the database.
 
@@ -316,16 +341,24 @@ def load_panel(
     Token fields (holders, top-10 share, bonding-curve progress, mint risk)
     hold their last observed value from the observation time on; before the
     first observation they are NaN.
+    `network` keeps one chain's pools; None loads every network in the file.
+    Per-pool fee tiers parsed from pool names land in `panel.pool_fee`.
     """
     candles = pd.read_sql("SELECT address, ts, close, volume FROM ohlcv", conn)
     snaps = pd.read_sql(
         "SELECT address, observed_at, price_usd, reserve_usd FROM snapshots ORDER BY observed_at",
         conn,
     )
-    pools = pd.read_sql("SELECT address, base_token, created_at, first_seen_at FROM pools", conn)
+    pools = pd.read_sql(
+        "SELECT address, base_token, created_at, first_seen_at, network, fee_pct FROM pools", conn
+    )
     tokens = pd.read_sql("SELECT * FROM token_snapshots", conn)
+    if network is not None:
+        pools = pools[pools["network"] == network]
+        candles = candles[candles["address"].isin(pools["address"])]
     if candles.empty:
-        raise ValueError("No candles in the database. Run backfill_ohlcv first.")
+        where = f" for network {network!r}" if network else ""
+        raise ValueError(f"No candles in the database{where}. Run backfill_ohlcv first.")
 
     candles["time"] = pd.to_datetime(candles["ts"], unit="s").dt.floor(bar)
     close = candles.pivot_table(index="time", columns="address", values="close", aggfunc="last")
@@ -358,6 +391,7 @@ def load_panel(
     ).dt.tz_localize(None).reindex(close.columns)
     fields = _point_in_time_token_fields(tokens, launch["base_token"], close)
     holders = fields.pop("holders", None)
+    fees = (launch["fee_pct"] / 100.0).reindex(close.columns)
     return TokenPanel(
         close=close,
         liquidity=liquidity.reindex_like(close).fillna(0.0),
@@ -365,6 +399,7 @@ def load_panel(
         holders=holders,
         launch_time=launch_time,
         extra=fields,
+        pool_fee=fees if fees.notna().any() else None,
     )
 
 
@@ -422,11 +457,12 @@ def _point_in_time_liquidity(snaps: pd.DataFrame, close: pd.DataFrame, grid: pd.
     return out
 
 
-def _upsert_pool(conn: sqlite3.Connection, pool: dict[str, Any], now: str) -> None:
+def _upsert_pool(conn: sqlite3.Connection, pool: dict[str, Any], now: str, network: str = NETWORK) -> None:
     attrs = pool["attributes"]
     rel = pool.get("relationships", {})
     conn.execute(
-        "INSERT OR IGNORE INTO pools VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO pools (address, name, base_token, quote_token, dex, created_at, "
+        "first_seen_at, network, fee_pct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             attrs["address"],
             attrs.get("name"),
@@ -435,8 +471,19 @@ def _upsert_pool(conn: sqlite3.Connection, pool: dict[str, Any], now: str) -> No
             _rel_id(rel, "dex"),
             attrs.get("pool_created_at"),
             now,
+            network,
+            pool_fee_pct(attrs.get("name")),
         ),
     )
+
+
+_FEE_IN_NAME = re.compile(r"\s(\d+(?:\.\d+)?)%\s*$")
+
+
+def pool_fee_pct(name: str | None) -> float | None:
+    """Fee tier from a pool name such as 'ai / WETH 1%' (Uniswap v3/v4). None if absent."""
+    match = _FEE_IN_NAME.search(name or "")
+    return float(match.group(1)) if match else None
 
 
 def _insert_snapshot(conn: sqlite3.Connection, pool: dict[str, Any], now: str) -> int:

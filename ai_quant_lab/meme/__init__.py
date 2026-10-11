@@ -1,6 +1,12 @@
 """Memecoin market: point-in-time universe, AMM execution, factors, capacity."""
 
-from ai_quant_lab.meme.amm import ExecutionCosts, max_size_for_cost, round_trip_cost_fraction
+from ai_quant_lab.meme.amm import (
+    NETWORK_COSTS,
+    ExecutionCosts,
+    costs_for_network,
+    max_size_for_cost,
+    round_trip_cost_fraction,
+)
 from ai_quant_lab.meme.backtest import (
     MemeBacktestConfig,
     MemeBacktestResult,
@@ -14,6 +20,7 @@ from ai_quant_lab.meme.simulate import UniverseSpec, simulate_universe
 from ai_quant_lab.meme.tearsheet import TearSheet, tear_sheet
 
 __all__ = [
+    "NETWORK_COSTS",
     "ExecutionCosts",
     "MemeBacktestConfig",
     "MemeBacktestResult",
@@ -23,6 +30,7 @@ __all__ = [
     "bars_per_day",
     "bars_per_year",
     "capacity_curve",
+    "costs_for_network",
     "estimate_capacity",
     "max_size_for_cost",
     "meme_attribution",

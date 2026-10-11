@@ -1,6 +1,8 @@
 """CLI: `python -m ai_quant_lab.meme <command>`.
 
-    collect   register new Solana pools and snapshot tracked ones (loop with --every)
+Networks (GeckoTerminal ids): solana, robinhood (Robinhood Chain).
+
+    collect   register new pools and snapshot tracked ones (loop with --every)
     backfill  pull 5-minute candles for collected pools
     run       collector for launchd: collect + refresh the stalest candles, forever
     info      what is in the database
@@ -15,7 +17,7 @@ import sys
 import time
 from pathlib import Path
 
-from ai_quant_lab.meme.amm import ExecutionCosts
+from ai_quant_lab.meme.amm import costs_for_network
 from ai_quant_lab.meme.backtest import MemeBacktestConfig, meme_backtest_fn
 from ai_quant_lab.meme.panel import bars_per_year
 from ai_quant_lab.meme.simulate import UniverseSpec, simulate_universe
@@ -28,6 +30,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("collect")
     p.add_argument("--db", type=Path, default=Path("meme.db"))
+    p.add_argument("--network", default="solana", help="solana or robinhood")
     p.add_argument("--pages", type=int, default=3)
     p.add_argument("--every", type=float, default=0.0, help="Seconds between passes; 0 = once.")
     p.add_argument("--holder-calls", type=int, default=10,
@@ -38,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("run")
     p.add_argument("--db", type=Path, default=Path("meme.db"))
+    p.add_argument("--networks", default="solana,robinhood", help="Comma-separated GeckoTerminal ids.")
     p.add_argument("--pages", type=int, default=3)
     p.add_argument("--every", type=float, default=120.0, help="Target seconds per pass.")
     p.add_argument("--holder-calls", type=int, default=10)
@@ -46,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("info")
     p.add_argument("--db", type=Path, default=Path("meme.db"))
+    p.add_argument("--network", default=None, help="Panel for one network; default all.")
 
     p = sub.add_parser("demo")
     p.add_argument("--days", type=int, default=21)
@@ -53,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("research")
     p.add_argument("--db", type=Path, default=None, help="Collected database; synthetic if absent.")
+    p.add_argument("--network", default="solana", help="Which network's pools to research.")
     p.add_argument("--iterations", type=int, default=20)
     p.add_argument("--target", type=int, default=2)
     p.add_argument("--capital", type=float, default=10_000.0)
@@ -74,8 +80,9 @@ def _collect(args: argparse.Namespace) -> int:
 
     conn, client = connect(args.db), GeckoClient()
     while True:
-        stats = collect_once(conn, client, pages=args.pages, holder_calls=args.holder_calls)
-        print(f"[collect] {time.strftime('%H:%M:%S')} +{stats.new_pools} pools, "
+        stats = collect_once(conn, client, network=args.network, pages=args.pages,
+                             holder_calls=args.holder_calls)
+        print(f"[collect] {time.strftime('%H:%M:%S')} {args.network}: +{stats.new_pools} pools, "
               f"{stats.snapshots} snapshots, {stats.token_snapshots} token snapshots", flush=True)
         if args.every <= 0:
             return 0
@@ -100,17 +107,22 @@ def _run(args: argparse.Namespace) -> int:
     )
 
     conn, client = connect(args.db), GeckoClient()
+    networks = [n.strip() for n in args.networks.split(",") if n.strip()]
     while True:
         started = time.monotonic()
-        try:
-            stats = collect_once(conn, client, pages=args.pages, holder_calls=args.holder_calls)
-            pools = stale_pools(conn, limit=args.backfill_per_pass, stale_hours=args.stale_hours)
-            candles = backfill_ohlcv(conn, client, addresses=pools)
-            print(f"[run] {time.strftime('%Y-%m-%d %H:%M:%S')} +{stats.new_pools} pools, "
-                  f"{stats.snapshots} snapshots, {stats.token_snapshots} token snapshots, "
-                  f"{candles} candles from {len(pools)} pools", flush=True)
-        except Exception as exc:  # noqa: BLE001 — a collector must outlive API hiccups
-            print(f"[run] {time.strftime('%Y-%m-%d %H:%M:%S')} pass failed: {exc!r}", flush=True)
+        for network in networks:
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            try:
+                stats = collect_once(conn, client, network=network, pages=args.pages,
+                                     holder_calls=args.holder_calls)
+                pools = stale_pools(conn, limit=args.backfill_per_pass, stale_hours=args.stale_hours,
+                                    network=network)
+                candles = backfill_ohlcv(conn, client, addresses=pools)
+                print(f"[run] {stamp} {network}: +{stats.new_pools} pools, "
+                      f"{stats.snapshots} snapshots, {stats.token_snapshots} token snapshots, "
+                      f"{candles} candles from {len(pools)} pools", flush=True)
+            except Exception as exc:  # noqa: BLE001 — a collector must outlive API hiccups
+                print(f"[run] {stamp} {network}: pass failed: {exc!r}", flush=True)
         time.sleep(max(args.every - (time.monotonic() - started), 5.0))
 
 
@@ -120,10 +132,12 @@ def _info(args: argparse.Namespace) -> int:
     conn = connect(args.db)
     for table in ("pools", "snapshots", "token_snapshots", "ohlcv"):
         print(f"{table:10s} {conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]}")
-    for dex, n in conn.execute("SELECT dex, COUNT(*) FROM pools GROUP BY dex ORDER BY 2 DESC"):
-        print(f"  {dex}: {n}")
+    for network, dex, n in conn.execute(
+        "SELECT network, dex, COUNT(*) FROM pools GROUP BY network, dex ORDER BY 1, 3 DESC"
+    ):
+        print(f"  {network:10s} {dex}: {n}")
     try:
-        panel = load_panel(conn)
+        panel = load_panel(conn, network=args.network)
     except ValueError as exc:
         print(exc)
         return 0
@@ -149,8 +163,9 @@ def _research(args: argparse.Namespace) -> int:
     if args.db is not None:
         from ai_quant_lab.meme.geckoterminal import connect, load_panel
 
-        panel = load_panel(connect(args.db))
-        source = f"Solana pools collected point-in-time from GeckoTerminal ({args.db})"
+        panel = load_panel(connect(args.db), network=args.network)
+        chain = {"solana": "Solana", "robinhood": "Robinhood Chain"}.get(args.network, args.network)
+        source = f"{chain} pools collected point-in-time from GeckoTerminal ({args.db})"
     else:
         panel = simulate_universe(UniverseSpec(n_days=30, edge=1.0))
         source = "synthetic 30-day memecoin universe"
@@ -165,7 +180,7 @@ def _research(args: argparse.Namespace) -> int:
         target_survivors=args.target,
         annualization=bars_per_year(panel.close.index),
         backtest_fn=meme_backtest_fn(
-            panel, MemeBacktestConfig(capital_usd=args.capital, costs=ExecutionCosts())
+            panel, MemeBacktestConfig(capital_usd=args.capital, costs=costs_for_network(args.network))
         ),
     )
     with ResearchMemory(args.memory_db) as memory:

@@ -191,7 +191,7 @@ def test_tear_sheet_runs(small_universe):
 def test_load_panel_point_in_time_and_death():
     conn = sqlite3.connect(":memory:")
     conn.executescript(_SCHEMA)
-    conn.execute("INSERT INTO pools VALUES ('A', 'A/SOL', 'a', 'sol', 'pump-fun', "
+    conn.execute("INSERT INTO pools (address, name, base_token, quote_token, dex, created_at, first_seen_at) VALUES ('A', 'A/SOL', 'a', 'sol', 'pump-fun', "
                  "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')")
     t0 = int(pd.Timestamp("2026-01-01").timestamp())
     for i in range(30):
@@ -213,7 +213,7 @@ def test_load_panel_point_in_time_and_death():
 def test_token_fields_are_point_in_time():
     conn = sqlite3.connect(":memory:")
     conn.executescript(_SCHEMA)
-    conn.execute("INSERT INTO pools VALUES ('A', 'A/SOL', 'tokA', 'sol', 'pump-fun', "
+    conn.execute("INSERT INTO pools (address, name, base_token, quote_token, dex, created_at, first_seen_at) VALUES ('A', 'A/SOL', 'tokA', 'sol', 'pump-fun', "
                  "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')")
     t0 = int(pd.Timestamp("2026-01-01").timestamp())
     for i in range(12):
@@ -375,8 +375,67 @@ def test_stale_pools_picks_unbackfilled_then_stalest():
     now = pd.Timestamp.now(tz="UTC")
     for name, age_h in (("new", 1), ("old", 200), ("fresh", 2), ("stale", 30)):
         launched = (now - pd.Timedelta(hours=age_h)).isoformat()
-        conn.execute("INSERT INTO pools VALUES (?, ?, 't', 'sol', 'x', ?, ?)", (name, name, launched, launched))
+        conn.execute("INSERT INTO pools (address, name, base_token, quote_token, dex, created_at, first_seen_at) VALUES (?, ?, 't', 'sol', 'x', ?, ?)", (name, name, launched, launched))
     conn.execute("INSERT INTO ohlcv VALUES ('fresh', ?, 1, 1, 1, 1, 1)", (int(now.timestamp()) - 600,))
     conn.execute("INSERT INTO ohlcv VALUES ('stale', ?, 1, 1, 1, 1, 1)", (int(now.timestamp()) - 20 * 3600,))
     assert stale_pools(conn, limit=10) == ["new", "stale"]   # 'old' left the window, 'fresh' is fresh
     assert stale_pools(conn, limit=1) == ["new"]
+
+
+def test_networks_are_kept_apart_and_fee_tiers_reach_the_backtest():
+    from ai_quant_lab.meme import costs_for_network
+    from ai_quant_lab.meme.geckoterminal import pool_fee_pct
+
+    assert pool_fee_pct("ai / WETH 1%") == 1.0
+    assert pool_fee_pct("Glorp / WETH 0.01%") == 0.01
+    assert pool_fee_pct("PEPE / SOL") is None
+    assert costs_for_network("robinhood").priority_fee_usd < costs_for_network("solana").priority_fee_usd
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA)
+    for addr, net, fee in (("SolPool", "solana", None), ("0xabc", "robinhood", 0.3)):
+        conn.execute(
+            "INSERT INTO pools (address, name, base_token, quote_token, dex, created_at, first_seen_at, "
+            "network, fee_pct) VALUES (?, ?, 't', 'q', 'd', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', ?, ?)",
+            (addr, addr, net, fee),
+        )
+    t0 = int(pd.Timestamp("2026-01-01").timestamp())
+    for addr in ("SolPool", "0xabc"):
+        for i in range(6):
+            conn.execute("INSERT INTO ohlcv VALUES (?, ?, 1, 1, 1, 1, 100)", (addr, t0 + 300 * i))
+    rh = load_panel(conn, network="robinhood")
+    assert list(rh.tokens) == ["0xabc"]
+    assert rh.pool_fee["0xabc"] == pytest.approx(0.003)
+    assert list(load_panel(conn, network="solana").tokens) == ["SolPool"]
+    assert len(load_panel(conn).tokens) == 2
+    with pytest.raises(ValueError, match="robinhood"):
+        load_panel(_empty(), network="robinhood")
+
+
+def _empty():
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA)
+    return conn
+
+
+def test_lower_pool_fee_means_lower_cost():
+    panel = simulate_universe(UniverseSpec(n_days=2, seed=3))
+    w = F.top_n_equal_weight(F.trailing_return(panel.close, 12), 5, F.tradeable(panel.close, panel.liquidity))
+    w = w.iloc[::36].reindex(w.index).ffill()
+    base = meme_backtest(w, panel).metrics["total_cost_usd"]
+    cheap = replace(panel, pool_fee=pd.Series(0.0001, index=panel.tokens))
+    assert meme_backtest(w, cheap).metrics["total_cost_usd"] < base
+
+
+def test_old_database_gets_network_columns(tmp_path):
+    from ai_quant_lab.meme.geckoterminal import connect
+
+    db = tmp_path / "old.db"
+    old = sqlite3.connect(db)
+    old.execute("CREATE TABLE pools (address TEXT PRIMARY KEY, name TEXT, base_token TEXT, quote_token TEXT, "
+                "dex TEXT, created_at TEXT, first_seen_at TEXT NOT NULL)")
+    old.execute("INSERT INTO pools VALUES ('A', 'A/SOL', 'a', 'sol', 'pump-fun', NULL, '2026-01-01')")
+    old.commit()
+    old.close()
+    conn = connect(db)
+    assert conn.execute("SELECT network, fee_pct FROM pools").fetchone() == ("solana", None)
