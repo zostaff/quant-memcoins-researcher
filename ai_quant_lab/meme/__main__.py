@@ -9,6 +9,7 @@ Networks (GeckoTerminal ids): solana, robinhood (Robinhood Chain).
     demo      tear sheets on synthetic tapes, no API key or data needed
     zoo       run the strategy library through every gate (database or synthetic)
     research  Claude research loop on a panel (database or synthetic)
+    terminal  four-window live terminal with library signals and paper trading
 """
 
 from __future__ import annotations
@@ -67,7 +68,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--capital", type=float, default=2_000.0)
     p.add_argument("--strategies", default=None, help="Comma-separated subset; default all.")
     p.add_argument("--out", type=Path, default=None, help="Write a markdown report here.")
+    p.add_argument("--json", type=Path, default=None, help="Write verdicts as JSON (for the terminal).")
     p.add_argument("--list", action="store_true", help="List the library and exit.")
+
+    p = sub.add_parser("terminal")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8787)
+    p.add_argument("--book", type=Path, default=Path("paper.db"), help="Paper trading database.")
+    p.add_argument("--account", default="default")
+    p.add_argument("--verdicts", type=Path, default=None, help="Zoo verdicts from `zoo --json`.")
+    p.add_argument("--open", action="store_true", help="Open the browser.")
 
     p = sub.add_parser("research")
     p.add_argument("--db", type=Path, default=None, help="Collected database; synthetic if absent.")
@@ -86,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
         "demo": _demo,
         "zoo": _zoo,
         "research": _research,
+        "terminal": _terminal,
     }[args.command](args)
 
 
@@ -197,6 +208,36 @@ def _zoo(args: argparse.Namespace) -> int:
     if args.out is not None:
         args.out.write_text(result.to_markdown(f"Strategy zoo: {source}"))
         print(f"\nreport written to {args.out}")
+    if args.json is not None:
+        import json
+
+        args.json.write_text(json.dumps({
+            "source": source,
+            "trials": result.n_trials,
+            "verdicts": {e.strategy: {"verdict": e.verdict, "reason": e.reason} for e in result.entries},
+        }, indent=2) + "\n")
+        print(f"verdicts written to {args.json}")
+    return 0
+
+
+def _terminal(args: argparse.Namespace) -> int:
+    from ai_quant_lab.meme.terminal import PaperBook, Terminal, load_verdicts, serve
+
+    terminal = Terminal(book=PaperBook(args.book, account=args.account), verdicts=load_verdicts(args.verdicts))
+    server = serve(terminal, args.host, args.port)
+    url = f"http://{args.host}:{args.port}/"
+    print(f"[terminal] {url}  paper book {args.book} ({args.account}), "
+          f"verdicts: {args.verdicts or 'none loaded (signals show untested)'}", flush=True)
+    if args.open:
+        import webbrowser
+
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
     return 0
 
 

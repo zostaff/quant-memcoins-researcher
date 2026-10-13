@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/zostaff/quant-memcoins-researcher/actions/workflows/ci.yml"><img src="https://github.com/zostaff/quant-memcoins-researcher/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="figures/badges/tests.svg" alt="176 tests">
+  <img src="figures/badges/tests.svg" alt="193 tests">
   <img src="figures/badges/strategies.svg" alt="12 strategies">
   <img src="figures/badges/python.svg" alt="Python 3.11+">
   <a href="LICENSE"><img src="figures/badges/license.svg" alt="MIT"></a>
@@ -19,12 +19,14 @@
   <b>The research stack a hedge fund would use, pointed at memecoins.</b><br>
   Claude invents strategies. The engine prices in rugs, curve slippage and MEV,<br>
   counts every variant you tried, and kills whatever was luck or market beta.<br>
-  Ships with 12 strategies, narrative rotation and market-mood signals included.
+  Ships with 12 strategies, narrative rotation and market-mood signals included,<br>
+  and a four-window live terminal that shows what each of them reads on a token right now.
 </p>
 
 <p align="center">
   <a href="https://zostaff.github.io/quant-memcoins-researcher/"><b>Website</b></a> ·
   <a href="#-the-demo">Demo</a> ·
+  <a href="#-the-terminal">Terminal</a> ·
   <a href="#-the-strategy-zoo">Strategy zoo</a> ·
   <a href="#-narratives-and-market-mood">Narratives</a> ·
   <a href="#-what-it-does">What it does</a> ·
@@ -56,6 +58,35 @@ The profit was the market, not the signal. That is the mistake this tool exists 
 ```bash
 python -m ai_quant_lab.meme demo      # about a minute
 ```
+
+<br>
+
+## 🖥️ The terminal
+
+```bash
+python -m ai_quant_lab.meme terminal --open        # http://127.0.0.1:8787
+```
+
+<p align="center"><img src="figures/terminal.png" alt="Meme Quant Terminal: four live windows, watchlist, market pulse and paper account" width="100%"></p>
+
+Four memecoins on one screen, live from GeckoTerminal and DexScreener on Solana and Robinhood Chain. Each window shows:
+
+- **Chart and flow.** Candles from 1m to 4h, TVL, FDV, volume, holders, top-10 share, buy share of the last hour.
+- **The universe screen.** The library's own filter: TVL, age, mint and freeze authority, top-10 concentration, honeypot. A token that fails it gets its signals shown as blocked.
+- **What every strategy reads on it.** Volume breakout, dip reversal, buy pressure, trending entry, curve graduation, narrative rotation and regime momentum, asked about this one pool with the library's features and thresholds.
+- **The zoo's verdict next to each signal.** `PASS`, `LUCK`, `LOSS` or `untested`, loaded from `zoo --json`. A lit signal from a strategy that never passed the zoo says so on the same line.
+- **What the ticket really costs.** Fee, curve slippage on the pool's reserve, MEV and priority fee for the amount typed in, one way and round trip, before you click.
+
+Around the windows sit a watchlist (trending and new pools), the market pulse (risk-on or risk-off from breadth, buy share, volume impulse and launch pace) and narrative heat.
+
+**Paper trading** charges the backtest's execution costs on every fill. The account shows two values: what a screener would call it, and what selling everything now would actually return. The gap is the price of getting out.
+
+```bash
+python -m ai_quant_lab.meme zoo --db data/meme.db --json verdicts.json
+python -m ai_quant_lab.meme terminal --verdicts verdicts.json --book paper.db
+```
+
+More in [TERMINAL.md](docs/TERMINAL.md).
 
 <br>
 
@@ -141,7 +172,7 @@ adds pools to it: picking pools because they trend is picking them on their outc
 | Synthetic switches do not leak | turning narratives on never changes base-tape prices (tested) |
 | External sentiment is lagged | a score is usable only after its publication lag (tested) |
 
-176 tests run on every push to `main` (Python 3.11 and 3.12, ruff).
+193 tests run on every push to `main` (Python 3.11 and 3.12, ruff).
 
 <br>
 
@@ -162,8 +193,6 @@ Every tool a fund uses to stop fooling itself, rebuilt for a market where most t
 
 Everything ends in one **tear sheet**: costs broken down, factor betas, capacity, both halves, deflated Sharpe, and a verdict.
 
-<p align="center"><img src="figures/dashboard.png" alt="Dashboard concept" width="100%"></p>
-<p align="center"><sub>Dashboard concept with sample data. The engine itself is a Python library and CLI.</sub></p>
 
 <br>
 
@@ -197,6 +226,7 @@ python -m ai_quant_lab.meme demo                        # tear sheets, no key, n
 python -m ai_quant_lab.meme run  --db data/meme.db      # collect Solana + Robinhood Chain, keep running
 python -m ai_quant_lab.meme info --db data/meme.db      # what has been collected
 python -m ai_quant_lab.meme zoo  --db data/meme.db      # run the strategy library on it
+python -m ai_quant_lab.meme terminal --open             # four live windows, signals, paper trading
 python -m ai_quant_lab.meme research --db data/meme.db --network robinhood --iterations 20
 ```
 
@@ -209,6 +239,7 @@ python -m ai_quant_lab.meme research --db data/meme.db --network robinhood --ite
 | `info` | Pools, candles, token fields and the narrative mix per chain |
 | `zoo` | Run the strategy library through every gate and write a report |
 | `research` | Claude proposes strategies on the collected panel; the gates decide |
+| `terminal` | Four-window live terminal: signals with zoo verdicts, real trade costs, paper book |
 
 > [!NOTE]
 > The free API allows about 30 calls a minute, so the collector needs to run for
@@ -294,7 +325,8 @@ until reset by hand.
 
 ## 🚧 What it does not do
 
-- **It does not trade.** No wallet, no execution. It tells you whether a strategy is worth trading.
+- **It does not trade real money.** No wallet, no execution. The terminal trades on paper with the same cost model; the engine tells you whether a strategy is worth trading.
+- **A lit signal is not advice.** Most library strategies have not passed the zoo on real data; the terminal shows each verdict next to its signal for that reason.
 - **Costs are a model.** Constant product is exact for bonding curves and conservative for concentrated liquidity. Calibrate against real fills.
 - **Free data has gaps.** Holder counts arrive late for fresh tokens, and GeckoTerminal does not report mint or freeze authority on EVM chains.
 - **No social data out of the box.** Narratives are read from names and on-chain activity; X or news sentiment needs your own feed through `load_external_sentiment`.
@@ -308,6 +340,7 @@ until reset by hand.
 | | |
 |---|---|
 | [MEMECOIN.md](docs/MEMECOIN.md) | The memecoin layer, chains, data fields |
+| [TERMINAL.md](docs/TERMINAL.md) | The live terminal: windows, signals, costs, paper trading, API |
 | [STRATEGIES.md](docs/STRATEGIES.md) | Strategy library, narratives, market mood, external sentiment, the zoo |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design |
 | [AGENTS.md](docs/AGENTS.md) | Agent prompts and behavior |

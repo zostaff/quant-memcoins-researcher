@@ -44,3 +44,7 @@ data/cache/
 # collected market data
 data/*.db
 data/*.log
+
+# terminal
+paper.db
+verdicts.json

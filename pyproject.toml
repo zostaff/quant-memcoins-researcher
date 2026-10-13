@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quant-memcoins-researcher"
-version = "0.3.0"
+version = "0.4.0"
 description = "Hedge-fund quant research for memecoins on Solana and Robinhood Chain. Claude generates strategies; the system prices rugs, slippage and MEV, and kills the lucky ones."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,6 +46,9 @@ Issues = "https://github.com/yourname/ai-quant-lab/issues"
 
 [tool.setuptools.packages.find]
 include = ["ai_quant_lab*"]
+
+[tool.setuptools.package-data]
+"ai_quant_lab.meme.terminal" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

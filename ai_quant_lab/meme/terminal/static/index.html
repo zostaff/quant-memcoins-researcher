@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meme Quant Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">◆</span> MEME<b>QUANT</b> <span class="sub">terminal</span></div>
+  <div class="nets" role="tablist" aria-label="Network">
+    <button data-net="solana" class="on">SOLANA</button>
+    <button data-net="robinhood">ROBINHOOD</button>
+  </div>
+  <form class="search" id="search">
+    <input id="q" placeholder="Search token, symbol or pool address" autocomplete="off">
+    <div class="results" id="results" hidden></div>
+  </form>
+  <div class="pulse" id="pulse"></div>
+  <div class="clock mono" id="clock"></div>
+</header>
+
+<main class="layout">
+  <aside class="side left">
+    <div class="tabs">
+      <button data-list="trending" class="on">Trending</button>
+      <button data-list="new">New pools</button>
+    </div>
+    <div class="hint">Click a row to load it into the focused window <span class="kbd" id="focusHint">1</span></div>
+    <div class="list" id="list"></div>
+    <div class="narr">
+      <div class="h">Narrative heat <span class="m">1h share vs 24h</span></div>
+      <div id="heat"></div>
+    </div>
+  </aside>
+
+  <section class="grid" id="grid"></section>
+
+  <aside class="side right">
+    <div class="acct" id="acct"></div>
+    <div class="h">Positions</div>
+    <div id="positions" class="positions"></div>
+    <div class="h">Fills</div>
+    <div id="fills" class="fills"></div>
+    <div class="h">Strategy library <span class="m">zoo verdicts</span></div>
+    <div id="lib" class="lib"></div>
+  </aside>
+</main>
+
+<template id="tpl-window">
+  <article class="win">
+    <div class="empty">
+      <div class="slotno"></div>
+      <p>Empty window</p>
+      <p class="m">Click a token in the watchlist, or search above.</p>
+    </div>
+    <div class="body" hidden>
+      <div class="whead">
+        <span class="slotno"></span>
+        <img class="icon" alt="">
+        <div class="ident">
+          <div class="sym"></div>
+          <div class="nm"></div>
+        </div>
+        <span class="chip narrative"></span>
+        <div class="px">
+          <div class="price mono"></div>
+          <div class="chg mono"></div>
+        </div>
+        <button class="x" title="Close window">×</button>
+      </div>
+      <div class="tfs"></div>
+      <canvas class="chart"></canvas>
+      <div class="stats mono"></div>
+      <div class="screen"></div>
+      <div class="sigs"></div>
+      <div class="trade">
+        <label class="amt">$<input type="number" min="5" step="50" value="500" class="usd mono"></label>
+        <div class="cost mono"></div>
+        <button class="buy">BUY</button>
+        <button class="sell" data-f="0.5">SELL ½</button>
+        <button class="sell" data-f="1">SELL ALL</button>
+      </div>
+      <div class="pos mono"></div>
+    </div>
+  </article>
+</template>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

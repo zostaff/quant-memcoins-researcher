@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0
+
+- **Live terminal** (`python -m ai_quant_lab.meme terminal`): four windows on
+  one screen, each with candles (1m to 4h), flow, holders, contract flags, the
+  library's universe screen, per-token readings of seven library strategies
+  with the zoo's verdict beside each, and the real cost of a ticket.
+- **Market pulse**: breadth, buy share, volume impulse and launch pace from
+  the live lists; switches to the library's `risk_appetite` once enough
+  readings exist. Narrative heat from 1h versus 24h volume share.
+- **Paper trading**: SQLite book, every fill charged the backtest's fee,
+  curve slippage, MEV and priority fee; account valued at mark and at
+  liquidation.
+- **Rate-limit friendly data layer**: prices and flow from DexScreener (one
+  batch call for every watched pool), candles, lists and holders from
+  GeckoTerminal; stale-while-revalidate cache, fail-fast cool-down on HTTP 429,
+  the last candle follows the live price.
+- `zoo --json` writes verdicts for the terminal.
+- **Tests**: 193.
+
 ## 0.3.0
 
 - **Strategy library**: 12 strategies in momentum, event, reversal, flow,

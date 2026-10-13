@@ -289,7 +289,7 @@ footer a{color:var(--soft)}
   <div class="wrap">
     <a class="brand" href="#top"><i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#050706" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/></svg></i><span>quant-memcoins-<b>researcher</b></span></a>
     <div class="links">
-      <a href="#demo">Demo</a><a href="#zoo">Zoo</a><a href="#narratives">Narratives</a><a href="#features">Features</a><a href="#pipeline">Pipeline</a><a href="#labs">Try it</a><a href="#chains">Chains</a><a href="#start">Quick start</a>
+      <a href="#demo">Demo</a><a href="#zoo">Zoo</a><a href="#terminal">Terminal</a><a href="#narratives">Narratives</a><a href="#features">Features</a><a href="#pipeline">Pipeline</a><a href="#labs">Try it</a><a href="#chains">Chains</a><a href="#start">Quick start</a>
     </div>
     <a class="btn sm" href="https://github.com/zostaff/quant-memcoins-researcher"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>GitHub</a>
   </div>
@@ -321,8 +321,8 @@ footer a{color:var(--soft)}
 </header>
 
 <div class="tape" aria-hidden="true"><div>
-  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>176</b> tests passing</span><span><b>12</b> strategies · <b>54</b> variants</span><span>narrative <b>rotation</b></span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
-  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>176</b> tests passing</span><span><b>12</b> strategies · <b>54</b> variants</span><span>narrative <b>rotation</b></span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
+  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>193</b> tests passing</span><span><b>12</b> strategies · <b>54</b> variants</span><span>narrative <b>rotation</b></span><span><b>4-window</b> live terminal</span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
+  <span><b>point-in-time</b> universe</span><span>exact <b>x·y=k</b> slippage</span><span><b>rugs</b> written off to zero</span><span>meme factors <b>MKT SIZE MOM AGE FLOW</b></span><span><b>deflated</b> Sharpe</span><span>capacity <b>$1k → $1M</b></span><span><b>193</b> tests passing</span><span><b>12</b> strategies · <b>54</b> variants</span><span>narrative <b>rotation</b></span><span><b>4-window</b> live terminal</span><span><b>Solana</b> · <b>Robinhood Chain</b></span><span>MIT <b>open source</b></span>
 </div></div>
 
 <section id="demo">
@@ -536,10 +536,16 @@ footer a{color:var(--soft)}
   </div>
 </section>
 
-<section style="padding-top:0">
+<section id="terminal" style="padding-top:0">
   <div class="wrap">
-    <div class="shot rv"><img src="assets/dashboard.png" alt="Dashboard concept: strategy arena, tear sheet and launch feed" loading="lazy" width="2880" height="1800"></div>
-    <p class="shot-cap">Dashboard concept with sample data. The engine itself is a Python library and CLI.</p>
+    <div class="sh rv">
+      <div class="kick">Live terminal</div>
+      <h2>Four memecoins on one screen. <em>Every signal with its verdict.</em></h2>
+      <p>Each window shows the chart and flow of one pool, the library's universe screen, what every strategy reads on that token right now with the zoo's verdict beside it, and what a ticket of your size would really cost: fee, curve slippage, MEV and priority fee, before you click. Trades go to a paper book that charges the same costs, and the account shows what selling everything now would actually return.</p>
+    </div>
+    <div class="shot rv"><img src="assets/terminal.png" alt="Meme Quant Terminal: four live windows with charts, signals, verdicts, trade costs, watchlist and paper account" loading="lazy" width="3360" height="2000"></div>
+    <p class="shot-cap">Live Solana data from GeckoTerminal. Paper trading only: there is no wallet and no execution.</p>
+    <div class="cmd" style="max-width:none"><code id="c-term">python -m ai_quant_lab.meme terminal --open</code><button class="copy" data-copy="c-term">copy</button></div>
   </div>
 </section>
 
